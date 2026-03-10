@@ -6,7 +6,7 @@
 
 ```bash
 # 安装依赖
-pip install fastapi uvicorn pydantic
+pip install fastapi uvicorn
 
 # 启动服务 (默认端口 8080)
 python server.py

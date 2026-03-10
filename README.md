@@ -13,7 +13,7 @@ python server.py
 
 # 指定端口
 python server.py --port 9090
-python server.py -p 9090 -H 127.0.0.1
+python server.py -p 9090 --host 127.0.0.1
 ```
 
 ## API 端点
@@ -47,16 +47,11 @@ curl -X POST http://localhost:8080/v1/chat/completions \
 ```
 ### 测试结果
 ![](assets/pic-1.jpg)
-
-## 支持的模型
-
-- `gpt-3.5-turbo`, `gpt-4`, `gpt-4-turbo`
-- `claude-3-opus`, `claude-3-sonnet`
-- `test-model`
+![](assets/pic-2.png)
 
 ## 命令行参数
 
 | 参数 | 简写 | 默认值 | 说明 |
 |------|------|--------|------|
 | `--port` | `-p` | `8080` | 监听端口 |
-| `--host` | `-H` | `0.0.0.0` | 监听地址 |
+| `--host` | | `0.0.0.0` | 监听地址 |

@@ -28,3 +28,7 @@ data/
 Thumbs.db
 .vscode/
 .idea/
+
+# agentx-offline build cache (dataset Arrow + tokenizer, ~1.8GB)
+agentx_offline/cache/
+

@@ -144,6 +144,33 @@ docker run --rm --network none -v %cd%/results:/app/results gptzero:v3 bench swe
 
 离线交付：`scripts/offline_image.ps1` 负责 build + `docker save` 到 `dist/gptzero-v3.tar`，目标机器 `docker load` 即用。细节见 `docs/DOCKER.md`。
 
+### 另一个镜像：`agentx-offline`（对真实 LLM 服务跑 AgentX）
+
+`gptzero` 是**被测服务**；`agentx-offline` 是**离线测试工具**：内置官方 `agentx-harness==1.0.7`
++ 真实语料 `semianalysisai/cc-traces-weka-062126`（393 条，1.77GB Arrow）+ tokenizer，
+在无外网环境里对任意 OpenAI 兼容服务跑 AgentX，并生成**单文件 HTML 对比报告**：
+
+```bash
+pwsh scripts/prepare_agentx_cache.ps1                 # 一次性准备缓存
+docker build -t agentx-offline:1.0.7 agentx_offline    # 3.92 GB，自带语料
+docker save -o dist/agentx-offline-1.0.7.tar agentx-offline:1.0.7
+
+# 目标机器（断网）：对两个模型/两套 infra 各跑一次
+docker run --rm -v /srv/results:/results agentx-offline:1.0.7 run \
+  --url http://10.0.0.5:8000 --model Qwen3-8B --target qwen3-vllm \
+  --concurrency 4,8,16 --duration 900
+docker run --rm -v /srv/results:/results agentx-offline:1.0.7 run \
+  --url http://10.0.0.6:8000 --model Qwen3-8B --target qwen3-sglang \
+  --concurrency 4,8,16 --duration 900
+# 汇总成 HTML（ECharts 内联，离线可开）
+docker run --rm -v /srv/results:/results agentx-offline:1.0.7 report --root /results
+```
+
+报告含 KPI 卡、汇总表、6 张 target 对比图、每个 target 的时序页；产物目录里是官方
+`profile_export_aiperf.json` / `profile_export.jsonl` / timeslices / `server_metrics_export.json`。
+详见 [docs/AGENTX_OFFLINE_IMAGE.md](docs/AGENTX_OFFLINE_IMAGE.md)，实测报告与截图在
+[results/agentx_offline_demo/](results/agentx_offline_demo/)。
+
 ## 仓库结构
 
 ```

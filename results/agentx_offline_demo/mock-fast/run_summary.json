@@ -1,0 +1,22 @@
+{
+  "target": "mock-fast",
+  "url": "http://host.docker.internal:8092",
+  "model": "gpt-3.5-turbo",
+  "tokenizer": "deepseek-ai/DeepSeek-V3",
+  "dataset": "semianalysis_cc_traces_weka_062126",
+  "entries": 8,
+  "duration_s": 120,
+  "points": [
+    {
+      "target": "mock-fast",
+      "concurrency": 8,
+      "exit_code": 0,
+      "ok": true,
+      "artifact_dir": "/results/mock-fast/c8",
+      "elapsed_s": 169.6,
+      "tail": ""
+    }
+  ],
+  "report": "/results/report.html",
+  "finished_at": "2026-10-28T11:00:54+0000"
+}

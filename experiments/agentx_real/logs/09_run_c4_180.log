@@ -1,0 +1,121 @@
+18:02:03.440 INFO     Starting AIPerf System (_single_run.py:64)
+18:02:03.446 INFO     Scenario 'agentx': setting profiling-phase timing_mode=agentic_replay. (validator.py:226)
+18:02:03.446 INFO     Scenario 'agentx': injecting extra_inputs.ignore_eos=true (was absent). (validator.py:285)
+18:02:03.446 INFO     Scenario 'agentx': auto-set --cache-bust=first_turn_prefix (was at default none). (validator.py:538)
+18:02:03.446 INFO     Scenario 'agentx': auto-set --system-idle-gap-cap-seconds=10.0 (was unset). (validator.py:779)
+18:02:03.446 WARNING  Scenario violation (override active): --benchmark-duration: got 180.0, required '>=900' (scenario 'agentx' requires duration >= 900s to reach steady state and trigger KV offloading) (validator.py:113)
+18:02:03.830 INFO     GPU telemetry disabled via --no-gpu-telemetry (system_controller.py:269)
+18:02:04.645 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:413)
+18:02:04.717 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:413)
+18:02:04.949 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:413)
+18:02:04.949 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:413)
+18:02:04.949 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:413)
+18:02:04.949 INFO     AIPerf System is CONFIGURING (system_controller.py:294)
+18:02:04.949 INFO     Configuring all services to start profiling (system_controller.py:307)
+18:02:04.959 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:592)
+18:02:04.959 INFO     Waiting for result domains: profile, server_metrics (system_controller.py:869)
+18:02:05.822 INFO     Registered Worker (id: 'worker_eb4622a0') (system_controller.py:413)
+18:02:05.884 INFO     Registered Worker (id: 'worker_89cf8aa5') (system_controller.py:413)
+18:02:05.924 INFO     Registered Worker (id: 'worker_f22a5863') (system_controller.py:413)
+18:02:05.978 INFO     Registered Record Processor (id: 'record_processor_16d29a77') (system_controller.py:413)
+18:02:05.997 INFO     Registered Worker (id: 'worker_fa57042c') (system_controller.py:413)
+18:02:14.427 INFO     All services configured in 9.48 seconds (system_controller.py:318)
+18:02:14.429 INFO     AIPerf System is CONFIGURED (system_controller.py:296)
+18:02:14.430 INFO     All services started profiling successfully (system_controller.py:340)
+18:02:14.430 INFO     AIPerf System is PROFILING (system_controller.py:298)
+18:05:51.244 INFO     Received credits complete from 'timing_manager' (system_controller.py:448)
+18:05:53.477 INFO     Waiting for result domains: server_metrics (system_controller.py:869)
+18:05:53.570 INFO     All results received, initiating shutdown (system_controller.py:864)
+18:05:54.171 INFO     Exporting all records (exporter_manager.py:69)
+18:05:54.375 INFO     Exporting console data (exporter_manager.py:326)
+
+
+                                             NVIDIA AIPerf | LLM Metrics: Effective                                              
+�����������������������������������������������������������������������������������������Щ����������������������Щ����������������Щ������������������������Щ������������������������Щ������������������������Щ����������������������Щ�����������������������
+��                                    Metric ��       avg ��    min ��        max ��        p99 ��        p90 ��       p50 ��       std ��
+�����������������������������������������������������������������������������������������੤���������������������੤���������������੤�����������������������੤�����������������������੤�����������������������੤���������������������੤����������������������
+��          Effective Concurrency (requests) ��      0.95 ��   0.00 ��       2.00 ��       2.00 ��       2.00 ��      1.00 ��      0.56 ��
+��  Effective Decode Throughput (tokens/sec) ��    102.81 ��   0.00 ��   1,558.12 ��     248.73 ��     209.96 ��    108.24 ��     65.93 ��
+�� Effective Prefill Throughput (tokens/sec) �� 14,003.10 ��   0.00 �� 924,463.77 �� 423,651.12 ��       0.00 ��      0.00 �� 71,573.66 ��
+��   Effective Decode Concurrency (requests) ��      0.90 ��   0.00 ��       2.00 ��       2.00 ��       2.00 ��      1.00 ��      0.56 ��
+��  Effective Prefill Concurrency (requests) ��      0.05 ��   0.00 ��       2.00 ��       1.00 ��       0.00 ��      0.00 ��      0.23 ��
+��   Effective Total Throughput (tokens/sec) �� 14,105.91 ��   0.00 �� 924,463.77 �� 423,651.12 ��     216.80 ��    107.85 �� 71,563.91 ��
+��      Effective Decode Throughput Per User ��     90.25 ��   0.00 ��     827.43 ��     149.48 ��     138.52 ��    107.68 ��     49.43 ��
+��                         (tokens/sec/user) ��           ��        ��            ��            ��            ��           ��           ��
+��     Effective Prefill Throughput Per User �� 13,304.34 ��   0.00 �� 603,587.83 �� 414,539.03 ��       0.00 ��      0.00 �� 66,421.70 ��
+��                         (tokens/sec/user) ��           ��        ��            ��            ��            ��           ��           ��
+��                 Tokens In Flight (tokens) �� 60,142.88 ��   0.00 �� 147,579.10 �� 147,115.07 �� 113,066.17 �� 64,911.00 �� 40,095.84 ��
+��         Effective Latency (CO-aware) (ms) ��  3,337.98 �� 727.13 ��  62,155.82 ��  50,298.69 ��   2,492.77 ��  1,175.20 ��  9,643.63 ��
+�����������������������������������������������������������������������������������������ة����������������������ة����������������ة������������������������ة������������������������ة������������������������ة����������������������ة�����������������������
+                                                NVIDIA AIPerf | LLM Metrics: Active                                                 
+�����������������������������������������������������������������������������������Щ������������������������Щ����������������������Щ������������������������Щ������������������������Щ������������������������Щ������������������������Щ�������������������������
+��                                 Metric ��        avg ��       min ��        max ��        p99 ��        p90 ��        p50 ��        std ��
+�����������������������������������������������������������������������������������੤�����������������������੤���������������������੤�����������������������੤�����������������������੤�����������������������੤�����������������������੤������������������������
+��  Active Decode Throughput (tokens/sec) ��     130.41 ��      0.00 ��   1,558.12 ��     250.54 ��     214.79 ��     110.00 ��      43.76 ��
+�� Active Prefill Throughput (tokens/sec) �� 293,249.92 �� 62,408.87 �� 924,463.77 �� 815,820.21 �� 497,227.24 �� 278,755.39 �� 159,346.15 ��
+��      Active Decode Throughput Per User ��     114.49 ��      0.00 ��     827.43 ��     149.61 ��     144.53 ��     109.52 ��      18.02 ��
+��                      (tokens/sec/user) ��            ��           ��            ��            ��            ��            ��            ��
+��     Active Prefill Throughput Per User �� 278,616.56 �� 62,408.87 �� 603,587.83 �� 603,587.83 �� 471,798.85 �� 278,755.39 �� 135,909.69 ��
+��                      (tokens/sec/user) ��            ��           ��            ��            ��            ��            ��            ��
+��   Active Total Throughput (tokens/sec) ��  17,317.08 ��     96.26 �� 924,463.77 �� 440,157.18 ��     227.05 ��     107.85 ��  78,940.83 ��
+�����������������������������������������������������������������������������������ة������������������������ة����������������������ة������������������������ة������������������������ة������������������������ة������������������������ة�������������������������
+                                               NVIDIA AIPerf | LLM Metrics: Usage                                                
+�����������������������������������������������������������������������������������Щ����������������������������Щ����������������������Щ����������������������Щ����������������������Щ����������������������Щ����������������������Щ�����������������������
+��                                 Metric ��          avg ��       min ��       max ��       p99 ��       p90 ��       p50 ��       std ��
+�����������������������������������������������������������������������������������੤���������������������������੤���������������������੤���������������������੤���������������������੤���������������������੤���������������������੤����������������������
+��           Usage Prompt Tokens (tokens) ��    49,167.50 �� 17,419.00 �� 78,667.00 �� 78,261.73 �� 73,792.80 �� 54,258.50 �� 20,051.25 ��
+��       Usage Completion Tokens (tokens) ��       361.98 ��     61.00 ��  6,674.00 ��  5,360.15 ��    245.10 ��    123.50 ��  1,054.98 ��
+��            Usage Total Tokens (tokens) ��    49,529.48 �� 17,545.00 �� 85,341.00 �� 81,206.22 �� 73,911.40 �� 54,459.00 �� 20,302.35 ��
+��     Total Usage Prompt Tokens (tokens) �� 2,851,715.00 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+�� Total Usage Completion Tokens (tokens) ��    20,995.00 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+��      Total Usage Total Tokens (tokens) �� 2,872,710.00 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+�����������������������������������������������������������������������������������ة����������������������������ة����������������������ة����������������������ة����������������������ة����������������������ة����������������������ة�����������������������
+                                                     NVIDIA AIPerf | LLM Metrics                                                      
+���������������������������������������������������������������������������������������������������Щ����������������������Щ����������������������Щ����������������������Щ����������������������Щ����������������������Щ����������������������Щ�����������������������
+��                                         Metric ��       avg ��       min ��       max ��       p99 ��       p90 ��       p50 ��       std ��
+���������������������������������������������������������������������������������������������������੤���������������������੤���������������������੤���������������������੤���������������������੤���������������������੤���������������������੤����������������������
+��                       Time to First Token (ms) ��    175.85 ��    117.17 ��    451.44 ��    370.26 ��    238.67 ��    160.26 ��     56.00 ��
+��                      Time to Second Token (ms) ��     20.44 ��      5.98 ��    154.96 ��    149.11 ��     32.97 ��      9.56 ��     29.04 ��
+��                Time to First Output Token (ms) ��    175.85 ��    117.17 ��    451.44 ��    370.26 ��    238.67 ��    160.26 ��     56.00 ��
+��                           Request Latency (ms) ��  3,337.23 ��    726.63 �� 62,155.37 �� 50,298.26 ��  2,491.48 ��  1,174.62 ��  9,643.68 ��
+��                           Decode Duration (ms) ��  3,161.38 ��    562.45 �� 61,873.16 �� 50,000.77 ��  2,279.95 ��    998.37 ��  9,612.97 ��
+��                      Full Decode Duration (ms) ��  3,161.64 ��    562.77 �� 61,873.42 �� 50,001.00 ��  2,280.21 ��    998.63 ��  9,612.97 ��
+��                       Inter Token Latency (ms) ��      8.61 ��      5.70 ��     10.39 ��     10.00 ��      9.44 ��      8.74 ��      0.88 ��
+��              Full-Response Inter Token Latency ��      8.61 ��      5.70 ��     10.39 ��     10.01 ��      9.44 ��      8.75 ��      0.88 ��
+��                                           (ms) ��           ��           ��           ��           ��           ��           ��           ��
+��               Output Token Throughput Per User ��    117.53 ��     96.29 ��    175.44 ��    163.44 ��    134.94 ��    114.36 ��     13.85 ��
+��                              (tokens/sec/user) ��           ��           ��           ��           ��           ��           ��           ��
+��  E2E Output Token Throughput (tokens/sec/user) ��    102.62 ��     83.93 ��    148.18 ��    145.55 ��    115.15 ��    101.22 ��     12.47 ��
+�� Full-Response Output Token Throughput Per User ��    117.50 ��     96.26 ��    175.37 ��    163.39 ��    134.90 ��    114.34 ��     13.85 ��
+��                              (tokens/sec/user) ��           ��           ��           ��           ��           ��           ��           ��
+��                Output Sequence Length (tokens) ��    361.98 ��     61.00 ��  6,674.00 ��  5,360.15 ��    245.10 ��    123.50 ��  1,054.98 ��
+��                 Input Sequence Length (tokens) �� 49,167.50 �� 17,419.00 �� 78,667.00 �� 78,261.73 �� 73,792.80 �� 54,258.50 �� 20,051.25 ��
+��           Output Token Throughput (tokens/sec) ��    103.09 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+��            Input Token Throughput (tokens/sec) �� 14,003.10 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+��              Request Throughput (requests/sec) ��      0.28 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+��                       Request Count (requests) ��     58.00 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+��               Theoretical Prefix Cache Hit (%) ��     95.53 ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��       N/A ��
+���������������������������������������������������������������������������������������������������ة����������������������ة����������������������ة����������������������ة����������������������ة����������������������ة����������������������ة�����������������������
+
+Token usage is reported but no prompt-cache read tokens were seen (usage.prompt_tokens_details.cached_tokens absent). If your server uses 
+prefix/KV caching, enable cache reporting so AIPerf can populate the prompt-cache metrics: vLLM --enable-prompt-tokens-details, SGLang 
+--enable-cache-report (TRT-LLM reports it by default).
+
+CLI Command: aiperf profile --url 'http://127.0.0.1:8092' --endpoint-type 'chat' --streaming 
+--public-dataset 'semianalysis_cc_traces_weka_062126' --tokenizer 'deepseek-ai/DeepSeek-V3' --model 
+'gpt-3.5-turbo' --concurrency 4 --benchmark-duration 180 --num-dataset-entries 8 --stats-interval 30
+--unsafe-override --output-artifact-dir 'experiments\agentx_real\run_c4_180'
+Benchmark Duration: 203.64 sec
+CSV Export: D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\profile_export_aiperf.csv
+JSON Export: 
+D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\profile_export_aiperf.json
+Server Metrics CSV Export: 
+D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\server_metrics_export.csv
+Server Metrics JSON Export: 
+D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\server_metrics_export.json
+Timeslice CSV Export: 
+D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: 
+D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\profile_export_aiperf_timeslices.json
+Log File: D:\Vibe_Workspace\GPT-Zero\experiments\agentx_real\run_c4_180\logs\aiperf.log
+

@@ -225,6 +225,21 @@ def test_logs_and_reset(client):
     assert client.get("/api/stats").json()["total_requests"] == 0
 
 
+def test_max_completion_tokens_alias(client):
+    """AIPerf/AgentX sends ``max_completion_tokens`` instead of ``max_tokens``."""
+    resp = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-3.5-turbo",
+            "messages": [{"role": "user", "content": "alias field"}],
+            "max_completion_tokens": 17,
+            "ignore_eos": True,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["usage"]["completion_tokens"] == 17
+
+
 def test_completions_endpoint(client):
     resp = client.post("/v1/completions", json={"model": "gpt-3.5-turbo", "prompt": "hello", "max_tokens": 5})
     assert resp.status_code == 200

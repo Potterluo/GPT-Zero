@@ -48,6 +48,7 @@ class ChatRequest(BaseModel):
     messages: list[dict[str, Any]] = Field(default_factory=list)
     stream: bool = False
     max_tokens: int | None = None
+    max_completion_tokens: int | None = None
     min_tokens: int | None = None
     stop: str | list[str] | None = None
     seed: int | None = None
@@ -68,6 +69,7 @@ class CompletionRequest(BaseModel):
     prompt: str | list[str] = ""
     stream: bool = False
     max_tokens: int | None = None
+    max_completion_tokens: int | None = None
     stop: str | list[str] | None = None
     seed: int | None = None
     stream_options: dict[str, Any] | None = None
@@ -124,7 +126,11 @@ class AppState:
 
 
 def _resolve_max_tokens(data: ChatRequest | CompletionRequest, cfg: ServerConfig) -> int:
+    # OpenAI's newer field is ``max_completion_tokens``; AIPerf/AgentX sends it
+    # for chat requests, so treat it as an alias of ``max_tokens``.
     requested = data.max_tokens
+    if requested is None:
+        requested = getattr(data, "max_completion_tokens", None)
     if requested is None:
         requested = cfg.default_max_tokens
     requested = int(requested)
@@ -170,8 +176,19 @@ async def _pace(delay_s: float) -> None:
         await asyncio.sleep(remaining)
 
 
-def _usage(prompt: int, completion: int) -> dict[str, int]:
-    return {"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": prompt + completion}
+def _usage(prompt: int, completion: int, cached: int = 0) -> dict[str, Any]:
+    """OpenAI usage block, including prompt-cache details.
+
+    AIPerf/AgentX reads ``usage.prompt_tokens_details.cached_tokens`` to compute
+    cache-hit metrics; without it the harness reports "no prompt-cache read
+    tokens were seen" and falls back to scraping Prometheus.
+    """
+    return {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": prompt + completion,
+        "prompt_tokens_details": {"cached_tokens": int(cached)},
+    }
 
 
 def _chunk(
@@ -364,7 +381,7 @@ def create_app(cfg: ServerConfig) -> FastAPI:
                         "choices": [
                             {"index": 0, "message": message, "finish_reason": plan.finish_reason}
                         ],
-                        "usage": _usage(plan.prompt_tokens, completion_tokens),
+                        "usage": _usage(plan.prompt_tokens, completion_tokens, plan.cache.hit_tokens),
                     }
                 )
             finally:
@@ -456,7 +473,7 @@ def create_app(cfg: ServerConfig) -> FastAPI:
                             "created": created,
                             "model": data.model,
                             "choices": [],
-                            "usage": _usage(plan.prompt_tokens, emitted_tokens),
+                            "usage": _usage(plan.prompt_tokens, emitted_tokens, plan.cache.hit_tokens),
                         }
                     )
                 yield SSE_DONE
@@ -554,7 +571,7 @@ def create_app(cfg: ServerConfig) -> FastAPI:
                             "finish_reason": "stop" if stopped else "length",
                         }
                     ],
-                    "usage": _usage(plan.prompt_tokens, completion_tokens),
+                    "usage": _usage(plan.prompt_tokens, completion_tokens, plan.cache.hit_tokens),
                 }
             )
         finally:

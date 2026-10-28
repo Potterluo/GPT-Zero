@@ -148,6 +148,12 @@
 
 ## 4. 真实 harness 冒烟（`agentx-harness==1.0.7`）
 
+> **更新（2026-10-28 18:20）：本节的「卡点」已被后续工作解决。**
+> 真正跑通并产出官方 artifacts 的记录在 **[`AGENTX_REAL.md`](AGENTX_REAL.md)**：真 harness + 真实语料
+> （`semianalysisai/cc-traces-weka-062126`）+ 纯离线，`profile_export_aiperf.json` / `server_metrics_export.json`
+> / timeslices 全部落盘。根因是三个兼容性问题（sentencepiece 0.2.2 DLL 崩溃、Windows ZMQ 端口窗口、
+> 服务端缺 `max_completion_tokens` 与 `prompt_tokens_details.cached_tokens`），不是网络。
+
 ### 4.1 安装（已成功）
 
 ```powershell

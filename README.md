@@ -114,13 +114,23 @@ results/charts/*.png / *.svg  TTFT、吞吐、缓存命中、CDF、Pareto、prof
 .venv\Scripts\python -m agentx replay --url http://127.0.0.1:8092 --traces agentx/traces --concurrency 4
 ```
 
-若环境可安装完整 harness，官方命令（离线替换 `--public-dataset` 为本地 traces）：
+**我们真的跑通了官方 harness**（离线 + 真实语料）：`agentx-harness==1.0.7` 加载
+`semianalysisai/cc-traces-weka-062126`（8 条），对 mock 做了 c=4 / 180s 回放，产出官方
+`profile_export_aiperf.json` / `profile_export.jsonl` / `server_metrics_export.json` / 1s timeslices：
+
+| 并发 | 请求 | TTFT p50/p90/p99 | ITL p50 | out tok/s | 缓存命中（理论/服务端） |
+|---|---|---|---|---|---|
+| 4 | 58 | 160 / 239 / 370 ms | 8.7 ms | 103 | 95.5% / 93.4% |
+
+完整命令、5 个坑与修复、官方产物说明见 [docs/AGENTX_REAL.md](docs/AGENTX_REAL.md)；
+结果与图在 [results/agentx_real/](results/agentx_real/)。官方形式（本地 pinned 语料）等价命令：
 
 ```bash
-agentx profile --url http://127.0.0.1:8092 --endpoint /v1/chat/completions \
-  --model gpt-3.5-turbo --tokenizer deepseek_v3_tokenizer \
-  --concurrency 4 --input-file agentx/traces --custom-dataset-type weka_trace \
-  --unsafe-override --benchmark-duration 60
+agentx profile --url http://127.0.0.1:8092 --endpoint-type chat --streaming \
+  --public-dataset semianalysis_cc_traces_weka_062126 \
+  --tokenizer deepseek-ai/DeepSeek-V3 --model gpt-3.5-turbo \
+  --concurrency 4 --benchmark-duration 180 --num-dataset-entries 8 \
+  --unsafe-override --output-artifact-dir experiments/agentx_real/run_c4_180
 ```
 
 ## Docker（纯离线）

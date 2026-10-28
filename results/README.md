@@ -87,6 +87,25 @@ AgentX 口径（98% cached input）同量级；请求数少（3/7/13）是因为
 
 ![AgentX 缓存命中](agentx/charts/cache_hit_vs_concurrency.png)
 
+## 4b. AgentX 官方 harness 真跑（真实语料，离线）
+
+用真正的 `agentx-harness==1.0.7` 跑真实语料 `semianalysisai/cc-traces-weka-062126`（8 条），
+mock 作服务端，产出官方 artifacts。详见 [../docs/AGENTX_REAL.md](../docs/AGENTX_REAL.md)。
+
+| 并发 | 时长 | 请求 | 成功率 | TTFT p50/p90/p99 (ms) | ITL p50 | E2E p50/p90 (ms) | out tok/s | ISL p50 | 缓存命中（理论/服务端） |
+|---|---|---|---|---|---|---|---|---|---|
+| 4 | 180s | 58 | 100% | 160 / 239 / 370 | 8.7 ms | 1175 / 2491 | 103 | 54,258 | 95.5% / 93.4% |
+
+![AgentX 真跑 TTFT 时序](agentx_real/charts/timeline_ttft.png)
+
+![AgentX 真跑吞吐时序](agentx_real/charts/timeline_throughput.png)
+
+> 表：`results/agentx_real/summary.{md,csv,json}`；原始产物：
+> `experiments/agentx_real/run_c4_180/`（`profile_export_aiperf.json`、`profile_export.jsonl`、
+> `server_metrics_export.json`、51 个 1s timeslices）。
+> 局限：只跑通 1 个并发点（180s，官方要求 ≥900s）；c=1/2/8 的尝试在本机卡在 AIPerf 的 Windows
+> 记录总线（非 mock/语料问题），已在文档中如实记录。
+
 ## 5. 复现
 
 ```powershell

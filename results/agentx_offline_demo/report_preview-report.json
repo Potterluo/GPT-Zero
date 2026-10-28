@@ -1,0 +1,21 @@
+[
+  {
+    "file": "page.png",
+    "state": null,
+    "size": "1440x1400",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": [
+      {
+        "rule": "longMeasure",
+        "label": "正文行太长",
+        "count": 2,
+        "examples": [
+          "div.meta「目标：mock-fast, mock-slow 」（每行约 106 字）",
+          "div.note「每个并发点的完整 agentx 产物都在结果目录」（每行约 104 字）"
+        ]
+      }
+    ]
+  }
+]

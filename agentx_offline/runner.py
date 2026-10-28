@@ -72,12 +72,12 @@ def build_command(args: argparse.Namespace, concurrency: int, artifact_dir: Path
             args.dataset_path,
             "--custom-dataset-type",
             "weka_trace",
-            "--unsafe-override",
         ]
     else:
         cmd += ["--public-dataset", args.dataset]
-    if args.duration < 900:
-        # Official scenario requires >=900s; shorter runs are explicit smoke runs.
+    # One override is enough: local corpus identity + short duration are both
+    # downgraded by the same flag.
+    if args.dataset_path or args.duration < 900:
         cmd += ["--unsafe-override"]
     if args.trust_remote_code:
         cmd += ["--tokenizer-trust-remote-code"]

@@ -239,9 +239,14 @@ def _make_subagent(
     rng = parent.rng
     inner_model = cfg.model
     n_inner = rng.randint(3, 8)
-    sub_system = rng.randint(3000, 7000)
-    sub_tool = rng.randint(4000, 12000)
+    # Keep the declared prefix small enough that the first inner request can
+    # physically contain it: AIPerf reconstructs the turn-0 system prefix from
+    # hash_ids and rejects the trace when ceil((system+tool)/block) exceeds the
+    # recorded block count.
+    sub_system = rng.randint(2000, 4000)
+    sub_tool = rng.randint(3000, 6000)
     sub_prefix = sub_system + sub_tool
+    sub_prefix_blocks = math.ceil(sub_prefix / cfg.block_size)
 
     ids: list[int] = []
     next_id = 0
@@ -256,8 +261,11 @@ def _make_subagent(
         # prompt_generator.generate() 的随机路径，与后续轮次不共享任何前缀字节。
         base = sub_prefix + int(k * rng.uniform(1200, 4200))
         in_tokens = min(base, max(cfg.max_isl // 3, sub_prefix + 4096), cfg.max_isl)
+        in_tokens = max(in_tokens, sub_prefix + 512)
         cached_frac = _cached_fraction(rng, cfg.cached_ratio)
         cached_blocks = int((in_tokens * cached_frac) // cfg.block_size)
+        cached_blocks = max(cached_blocks, sub_prefix_blocks)
+        cached_blocks = min(cached_blocks, in_tokens // cfg.block_size)
         while len(ids) < cached_blocks:
             ids.append(next_id)
             next_id += 1
@@ -327,7 +335,12 @@ def generate_session(index: int, cfg: GenConfig) -> dict[str, Any]:
     # 每条 session 的峰值上下文在 [35%, 100%] * max_isl 之间，保证分布有层次
     peak_target = int(rng.uniform(0.35, 1.0) * cfg.max_isl)
     peak_target = min(cfg.max_isl, max(peak_target, prefix + 2048))
-    first_in = min(prefix + rng.randint(400, 2500), peak_target)
+    prefix_blocks = math.ceil(prefix / cfg.block_size)
+    # Turn 0 must carry at least the declared system+tools prefix as blocks,
+    # otherwise AIPerf aborts with "system prefix requires N hash blocks".
+    min_first = prefix_blocks * cfg.block_size + cfg.block_size
+    first_in = min(max(prefix + rng.randint(400, 2500), min_first), peak_target)
+    first_in = max(first_in, prefix + 256)
 
     requests: list[dict[str, Any]] = []
     agent_index = 0
@@ -353,6 +366,7 @@ def generate_session(index: int, cfg: GenConfig) -> dict[str, Any]:
         # 导致 prefix cache 曲线在真实 harness 里失真。
         cached_frac = _cached_fraction(rng, cfg.cached_ratio)
         n_blocks = int((in_tokens * cached_frac) // cfg.block_size)
+        n_blocks = max(n_blocks, prefix_blocks)
         n_blocks = min(n_blocks, in_tokens // cfg.block_size)
         hash_ids = state.extend_ids(n_blocks) if n_blocks else []
 

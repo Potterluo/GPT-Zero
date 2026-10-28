@@ -125,19 +125,26 @@ results/
 
 两个 target 是同一台机器上的 gptzero mock（模拟 fast/slow 两档 infra），用于验证链路：
 
-| target | 并发 | 请求 | TTFT p50/p90/p99 (ms) | 输出 tok/s | 缓存命中（理论/实测） |
-|---|---|---|---|---|---|
-| mock-fast | 4 | 35 | 143 / 237 / 45,210* | 78 | 93.2% / 92.9% |
-| mock-fast | 8 | 14 | 255 / 405 / 435 | 155 | 81.7% / 81.5% |
-| mock-slow | 4 | 43 | 375 / 582 / 651 | 56 | 93.5% / 93.3% |
-| mock-slow | 8 | 12 | 739 / 1,107 / 1,250 | 139 | 79.4% / 80.6% |
+| target | 并发 | 请求 | TTFT p50/p90/p99 (ms) | 交互性 tok/s | 输出 tok/s | 缓存命中（理论/实测） |
+|---|---|---|---|---|---|---|
+| mock-fast | 1 | 10 | 235 / 292 / 317 | 159 | 69 | 99.6% / 99.4% |
+| mock-fast | 4 | 35 | 143 / 237 / 45,210* | 158 | 78 | 93.2% / 92.9% |
+| mock-fast | 8 | 14 | 255 / 405 / 435 | 164 | 155 | 81.7% / 81.6% |
+| mock-fast | 16 | 25 | 244 / 483 / 632 | 154 | 293 | 72.0% / 71.9% |
+| mock-slow | 1 | 8 | 527 / 665 / 671 | 69 | 39 | 99.6% / 99.4% |
+| mock-slow | 4 | 43 | 375 / 582 / 651 | 69 | 56 | 93.5% / 93.3% |
+| mock-slow | 8 | 12 | 739 / 1,107 / 1,250 | 71 | 139 | 79.4% / 80.6% |
+| mock-slow | 16 | 23 | 678 / 1,424 / 2,811 | 67 | 222 | 69.2% / 69.2% |
 
 \* 真实离群点：一条超长上下文 prefill；原始记录见 `results/agentx_offline_demo/mock-fast/c4/profile_export.jsonl`。
+报告里的 **逐请求延迟 CDF** 直接从这些 JSONL 记录（仅 profiling 阶段）生成，不依赖聚合摘要。
 
-完整 demo（报告 + 4 个点的全部官方 artifacts）：`results/agentx_offline_demo/`；
-截图：`results/agentx_offline_demo/report_preview.png`。
+另外验证了**本地 trace 模式**：`--dataset-path /traces` 指向自建 WEKA 目录，同样产出完整
+artifacts 与报告（该模式会打 `submission_valid=false`）。
 
-换成真实服务时只需改 `--url/--model/--target`，其余不变。
+完整 demo（报告 + 7 个点的全部官方 artifacts）：`results/agentx_offline_demo/`；
+截图：`results/agentx_offline_demo/report_preview.png`。换成真实服务时只需改
+`--url/--model/--target`，其余不变。
 
 ## 7. 已知边界
 
@@ -146,3 +153,45 @@ results/
 - 官方 submission 还要求 pinned 语料 + ≥900s + 真实模型服务；本镜像满足前三者的形式要求，
   但分数的解释权仍取决于你的服务是否真实（mock 分数没有意义）；
 - GPU 遥测默认关闭（`--no-gpu-telemetry`）；需要的话在 `--extra` 里打开并挂载 GPU 设备。
+
+## 8. 怎么读这份报告（与 AgentX 官方口径对照）
+
+| 报告里的列/图 | 官方口径 | 注意 |
+|---|---|---|
+| TTFT p50/p90/p99 | AgentX 的核心交互性指标 | 142k 上下文下 p99 长尾很正常；不要只看 p50 |
+| ITL p50 / 交互性 tok/s | 官方 `intvty = 1/TPOT`，衡量“人可感知的生成速度” | 与总吞吐是两回事：低并发看 ITL，高并发看吞吐 |
+| 输出 tok/s | 官方按 `throughput/chip` 归一化到芯片数 | 本镜像不知道你的卡数，报告给**整机**吞吐；需要 per-chip 自己除 |
+| 请求吞吐 RPS | 受 trace 时序约束（闭环） | 并发提高不一定线性涨，AgentX 不是固定批次压测 |
+| E2E p50/p90 | 请求全程 | 受长 prefill + 排队共同影响 |
+| 缓存命中（理论/实测） | 官方明确 98% cached input 是 AgentX 负载特征 | 理论值来自 trace 的 LCP；实测低说明服务端 KV 容量/前缀缓存策略有差距 |
+| 汇总表里的 ISL/OSL | 官方 median in=142k / out=444 | 用 `--entries 8` 时是子集，中位数会偏小，属预期 |
+
+**关键提醒**：AgentX 是**闭环** benchmark，`--concurrency` 是并发 agent 会话数，不是 HTTP 批次；
+不同并发点完成的请求数不同（快服务跑得更多），所以吞吐和延迟要成对看，不能只比单点。
+
+## 9. 更多测试：本地 trace 模式
+
+除了官方 pinned 语料，也可以直接喂本地 WEKA trace 目录（例如自建采集）：
+
+```bash
+docker run --rm -v /data/my-traces:/traces -v "$PWD/results:/results" agentx-offline:1.0.7 run \
+  --url http://llm:8000 --model Qwen3-8B --target my-traces \
+  --dataset-path /traces --concurrency 4 --duration 300
+```
+
+此时 harness 会打 `submission_valid=false`（本地语料身份不可核验），但 artifacts 与报告流程完全一致，
+适合做**私有流量回归**。该模式已实测跑通（镜像内 `--input-file /traces`）。
+
+## 10. 语料子集代表性（互动调研数据）
+
+镜像里虽然烤了 393 条全量，但小机器跑 `--entries 8`。实测这 8 条与全量语料的分布对比：
+
+| 指标 | 前 8 条子集 | 全量 393 条 | 官方公布 |
+|---|---|---|---|
+| 请求数 | 1,892 | 98,827 | 98,827 |
+| 输入 token 中位数 | 133,792 | 142,016 | 142,016 |
+| 输出 token 中位数 | 412 | 444 | 444 |
+
+子集的请求级中位数与全量非常接近（长上下文、短输出的 agentic 形状没变）；报告里出现更低的
+ISL p50（40k~70k）是因为 AgentX 在每条 trace 的 25%~75% 处取轨迹快照，profiling 窗口内只覆盖
+部分上下文，不是语料被截断。

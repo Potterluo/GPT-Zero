@@ -112,22 +112,24 @@
 
 | 并发 | 请求 | 成功 | TTFT p50 | TTFT p90 | TTFT p99 | TPOT p50 | E2E p90 | req/s | out tok/s | 缓存命中 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 3 | 100% | 265 ms | 302 ms | 311 ms | 8.27 ms | 5057 ms | 0.085 | 43.5 | **99.6%** |
-| 2 | 7 | 100% | 248 ms | 278 ms | 288 ms | 8.27 ms | 6545 ms | 0.193 | 93.3 | **99.3%** |
-| 4 | 13 | 100% | 293 ms | 336 ms | 345 ms | 8.17 ms | 6999 ms | 0.356 | 153.8 | **99.6%** |
+| 1 | 3 | 100% | 227 ms | 241 ms | 244 ms | 5.63 ms | 5799 ms | 0.09 | 70.7 | **96.3%** |
+| 2 | 6 | 100% | 174 ms | 201 ms | 203 ms | 5.84 ms | 5422 ms | 0.18 | 88.3 | **97.9%** |
+| 4 | 10 | 100% | 207 ms | 287 ms | 287 ms | 6.08 ms | 6103 ms | 0.30 | 146.3 | **98.4%** |
 
-（`results/agentx/replay.csv` 原始行，`valid=true`；`tok/s/chip` 留空 —— 未给 `--chips`。）
+（`results/agentx/replay.csv` 原始行，`valid=true`；`tok/s/chip` 留空 —— 未给 `--chips`。
+本轮语料是修复后的 8 条合成 trace：750 请求 / 88 子代理，前缀声明与 `hash_ids` 已对齐 AIPerf 的
+「turn-0 system prefix 需要 N 个块」校验。）
 
 观察：
 
 - **成功率 100%**，无失败请求（`failed_request_threshold=0.10` 未触发，`valid=true`）
-- **TPOT ≈ 8.2 ms**，与 `--tpot-ms 8` 一致 —— 说明服务端 `ignore_eos` 精确长度语义正确
+- **TPOT ≈ 5.6~6.1 ms**，与 `--tpot-ms 6` 的服务端一致 —— 说明 `ignore_eos` 精确长度语义正确
   （修复前带 `tools` 的轮次 `completion_tokens` 远小于 `max_tokens`，TPOT 会被算成 0.06ms 的失真值）
-- **prefix cache 命中 99.3%~99.6%**，官方口径 ~98%，同一量级
-- 吞吐随并发近似线性增长（43.5 → 93.3 → 153.8 out tok/s），符合 mock 的固定 TTFT + 固定 TPOT 延迟模型
-- **TTFT 在 c=2 处的下探是采样噪声**：每点只有 3/7/13 个请求（30s 窗口 ÷ trace 自身 3~10s 的 idle gap），
-  分位数不足以支撑单调性结论。看 **p90/p99 的绝对量级**（250~350ms，≈ `--ttft-ms 120`
-  加上 16k~32k prompt 的处理开销）比看趋势更可靠
+- **prefix cache 命中 96.3%~98.4%**，官方口径 ~98%，同一量级
+- 吞吐随并发近似线性增长（70.7 → 88.3 → 146.3 out tok/s），符合 mock 的固定 TTFT + 固定 TPOT 延迟模型
+- **TTFT 在 c=2 处的下探是采样噪声**：每点只有 3/6/10 个请求（30s 窗口 ÷ trace 自身 3~10s 的 idle gap），
+  分位数不足以支撑单调性结论。看 **p90/p99 的绝对量级**（200~290ms，≈ `--ttft-ms 120`
+  加上 14k~32k prompt 的处理开销）比看趋势更可靠
 
 图表（matplotlib，Agg）：
 

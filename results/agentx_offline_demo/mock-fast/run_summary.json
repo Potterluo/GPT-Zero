@@ -9,14 +9,14 @@
   "points": [
     {
       "target": "mock-fast",
-      "concurrency": 8,
+      "concurrency": 16,
       "exit_code": 0,
       "ok": true,
-      "artifact_dir": "/results/mock-fast/c8",
-      "elapsed_s": 169.6,
+      "artifact_dir": "/results/mock-fast/c16",
+      "elapsed_s": 176.7,
       "tail": ""
     }
   ],
   "report": "/results/report.html",
-  "finished_at": "2026-10-28T11:00:54+0000"
+  "finished_at": "2026-10-28T11:13:21+0000"
 }

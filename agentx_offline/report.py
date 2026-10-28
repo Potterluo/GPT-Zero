@@ -62,6 +62,45 @@ def _timeslices(path: Path) -> dict[str, list[float]]:
     return out
 
 
+def _cdf(values: list[float], max_points: int = 240) -> list[list[float]]:
+    """Empirical CDF points ``[[latency_ms, percentile], ...]``."""
+    clean = sorted(float(v) for v in values if v is not None)
+    if not clean:
+        return []
+    n = len(clean)
+    step = max(1, n // max_points)
+    points: list[list[float]] = []
+    for i in range(0, n, step):
+        points.append([round(clean[i], 1), round(100.0 * (i + 1) / n, 2)])
+    if points[-1][1] < 100.0:
+        points.append([round(clean[-1], 1), 100.0])
+    return points
+
+
+def _records_cdf(point_dir: Path) -> dict[str, list[list[float]]]:
+    """Read the official per-request JSONL and keep profiling-phase latencies only."""
+    path = point_dir / "profile_export.jsonl"
+    if not path.exists() or path.stat().st_size == 0:
+        return {}
+    ttft: list[float] = []
+    e2e: list[float] = []
+    with path.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            meta = rec.get("metadata") or {}
+            if meta.get("benchmark_phase") != "profiling":
+                continue
+            metrics = rec.get("metrics") or {}
+            for key, bucket in (("time_to_first_token", ttft), ("request_latency", e2e)):
+                value = (metrics.get(key) or {}).get("value")
+                if value is not None:
+                    bucket.append(float(value))
+    return {"ttft": _cdf(ttft), "e2e": _cdf(e2e)}
+
+
 def load_point(point_dir: Path, target: str, concurrency: int) -> dict | None:
     summary = point_dir / "profile_export_aiperf.json"
     if not summary.exists() or summary.stat().st_size == 0:
@@ -97,7 +136,11 @@ def load_point(point_dir: Path, target: str, concurrency: int) -> dict | None:
             console, r"Theoretical Prefix Cache Hit \(%\)\s*│\s*([\d.]+)"
         ),
         "cache_server_pct": _last_group(log_text, r"srv\s+prefix_cache_hit=([\d.]+)%"),
+        "interactivity": round(1000.0 / data["inter_token_latency"]["p50"], 1)
+        if (data.get("inter_token_latency") or {}).get("p50")
+        else None,
         "timeline": _timeslices(point_dir / "profile_export_aiperf_timeslices.csv"),
+        "cdf": _records_cdf(point_dir),
         "artifacts": {
             "summary": str(summary.relative_to(point_dir.parent.parent.parent)),
             "records": f"{target}/c{concurrency}/profile_export.jsonl",
@@ -137,7 +180,7 @@ def _fmt(value: float | None, digits: int = 1, suffix: str = "") -> str:
 def _table(points: list[dict]) -> str:
     head = (
         "<tr><th>目标 / 模型</th><th>并发</th><th>请求</th><th>成功</th><th>RPS</th>"
-        "<th>TTFT p50/p90/p99 (ms)</th><th>ITL p50 (ms)</th><th>E2E p50/p90 (ms)</th>"
+        "<th>TTFT p50/p90/p99 (ms)</th><th>ITL p50 (ms)</th><th>交互性 tok/s</th><th>E2E p50/p90 (ms)</th>"
         "<th>输出 tok/s</th><th>输入 tok/s</th><th>ISL p50</th><th>OSL p50</th>"
         "<th>缓存命中 理论/实测</th></tr>"
     )
@@ -152,6 +195,7 @@ def _table(points: list[dict]) -> str:
             f"<td class='num'>{_fmt(p['rps'], 2)}</td>"
             f"<td class='num'>{_fmt(p['ttft']['p50'], 0)} / {_fmt(p['ttft']['p90'], 0)} / {_fmt(p['ttft']['p99'], 0)}</td>"
             f"<td class='num'>{_fmt(p['itl']['p50'], 1)}</td>"
+            f"<td class='num'>{_fmt(p['interactivity'], 0)}</td>"
             f"<td class='num'>{_fmt(p['e2e']['p50'], 0)} / {_fmt(p['e2e']['p90'], 0)}</td>"
             f"<td class='num'>{_fmt(p['out_tps'], 0)}</td>"
             f"<td class='num'>{_fmt(p['in_tps'], 0)}</td>"
@@ -275,6 +319,54 @@ def _options(points: list[dict], targets: list[str]) -> dict:
         "cache": cache,
     }
 
+def _cdf_options(points: list[dict], targets: list[str]) -> dict:
+    """Latency CDF at the highest concurrency available per target."""
+    colors = ["#4f8cff", "#22c3a6", "#f5a524", "#ef5da8", "#9b7bff"]
+
+    def build(kind: str, title: str) -> dict:
+        series = []
+        for i, target in enumerate(targets):
+            pts = [p for p in points if p["target"] == target and p.get("cdf", {}).get(kind)]
+            if not pts:
+                continue
+            peak = max(pts, key=lambda p: p["concurrency"])
+            series.append(
+                {
+                    "name": f"{target} · c{peak['concurrency']}",
+                    "type": "line",
+                    "showSymbol": False,
+                    "step": "end",
+                    "data": peak["cdf"][kind],
+                    "itemStyle": {"color": colors[i % len(colors)]},
+                }
+            )
+        return {
+            "backgroundColor": "transparent",
+            "grid": {"left": 52, "right": 28, "top": 42, "bottom": 52},
+            "tooltip": {"trigger": "axis"},
+            "legend": {"bottom": 0, "textStyle": {"color": "#9fb0c6"}},
+            "title": {"text": title, "left": "center", "top": 6,
+                      "textStyle": {"color": "#dbe6f3", "fontSize": 13}},
+            "xAxis": {
+                "type": "value",
+                "name": "ms",
+                "axisLabel": {"color": "#9fb0c6"},
+                "axisLine": {"lineStyle": {"color": "#324156"}},
+                "splitLine": {"lineStyle": {"color": "#1d2836"}},
+            },
+            "yAxis": {
+                "type": "value",
+                "name": "%",
+                "max": 100,
+                "axisLabel": {"color": "#9fb0c6"},
+                "splitLine": {"lineStyle": {"color": "#1d2836"}},
+            },
+            "series": series,
+        }
+
+    return {"ttft": build("ttft", "TTFT CDF（最高并发）"), "e2e": build("e2e", "E2E CDF（最高并发）")}
+
+
 def _timeline_cap(values: list[float]) -> float | None:
     """Clip the timeline y-axis so one cold-start spike does not flatten the run.
 
@@ -386,6 +478,7 @@ a{color:#6ea8ff;text-decoration:none}
 def render_html(points: list[dict], targets: list[str], echarts_js: str) -> str:
     concs = sorted({p["concurrency"] for p in points})
     options = _options(points, targets)
+    options["cdf"] = _cdf_options(points, targets)
     timelines = _timeline_options(points)
     generated = time.strftime("%Y-%m-%d %H:%M:%S")
     table = _table(points)
@@ -433,6 +526,14 @@ def render_html(points: list[dict], targets: list[str], echarts_js: str) -> str:
   </div>
 
   <div class="panel">
+    <h2>逐请求延迟 CDF（profiling 窗口）</h2>
+    <div class="charts">
+      <div class="chart" id="c-cdf-ttft"></div>
+      <div class="chart" id="c-cdf-e2e"></div>
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>时序（profiling 窗口内每秒）</h2>
     <div class="tabs">{timeline_tabs}</div>
     <div class="chart" id="c-timeline" style="height:340px"></div>
@@ -466,6 +567,8 @@ mount("c-throughput", OPTIONS.throughput);
 mount("c-rps", OPTIONS.rps);
 mount("c-e2e", OPTIONS.e2e);
 mount("c-cache", OPTIONS.cache);
+mount("c-cdf-ttft", OPTIONS.cdf && OPTIONS.cdf.ttft);
+mount("c-cdf-e2e", OPTIONS.cdf && OPTIONS.cdf.e2e);
 
 const keys = Object.keys(TIMELINES);
 let timelineChart = null;

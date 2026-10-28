@@ -1,0 +1,24 @@
+# AIPerf Server Metrics Export (CSV)
+# aiperf_version: 1.0.7
+# schema_version: 1.0
+# benchmark_id: 67a358bf8455
+# Note: Same benchmark_id and version appear in JSON and Parquet exports
+#
+Endpoint,Type,Metric,Unit,avg,min,max,std,p1,p5,p10,p25,p50,p75,p90,p95,p99,Description
+host.docker.internal:8092,gauge,vllm:kv_cache_usage_perc,percent,0.0812,0.0000,0.0830,0.0044,0.0798,0.0800,0.0800,0.0809,0.0814,0.0819,0.0830,0.0830,0.0830,Fraction of KV-cache blocks in use.
+host.docker.internal:8092,gauge,vllm:num_requests_running,requests,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,Number of requests currently being served.
+host.docker.internal:8092,gauge,vllm:num_requests_waiting,requests,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,Number of requests queued behind the concurrency limit.
+
+Endpoint,Type,Metric,Unit,total,rate,rate_avg,rate_min,rate_max,rate_std,engine,model_name,finished_reason,Description
+host.docker.internal:8092,counter,gptzero:cache_hit_tokens,tokens,6612864.0000,53166.9255,50564.1290,0.0000,3234496.0000,301335.4076,,,,Tokens served from the prefix cache.
+host.docker.internal:8092,counter,vllm:request_success,requests,12.0000,0.0997,0.0750,0.0000,1.0000,0.2645,,,length,Requests completed per finish reason.
+host.docker.internal:8092,counter,vllm:generation_tokens,tokens,8283.0000,66.5947,51.9194,0.0000,1546.0000,251.5829,,mock,,Total generated tokens.
+host.docker.internal:8092,counter,vllm:prompt_tokens,tokens,6974899.0000,56077.6594,53459.8548,0.0000,3574654.0000,330808.2586,,mock,,Total prompt tokens processed.
+host.docker.internal:8092,counter,vllm:prefix_cache_evictions,,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0,mock,,Prefix cache evictions.
+host.docker.internal:8092,counter,vllm:prefix_cache_hits,,6612864.0000,53166.9255,50564.1290,0.0000,3234496.0000,301335.4076,0,mock,,Total prompt tokens reused from the prefix cache.
+host.docker.internal:8092,counter,vllm:prefix_cache_queries,,6974899.0000,56077.6594,53459.8548,0.0000,3574654.0000,330808.2586,0,mock,,Total prompt tokens queried against the prefix cache.
+
+Endpoint,Type,Metric,Unit,count,count_rate,sum,sum_rate,avg,p1_estimate,p5_estimate,p10_estimate,p25_estimate,p50_estimate,p75_estimate,p90_estimate,p95_estimate,p99_estimate,model_name,Description,buckets
+host.docker.internal:8092,histogram,vllm:e2e_request_latency_seconds,seconds,21,0.1688,55.8537,0.4491,2.6597,0.1030,0.1150,0.1316,0.1816,0.2821,3.5690,8.7663,10.0000,14.3457,mock,End-to-end request latency in seconds.,0.01=0;0.025=0;0.05=0;0.1=0;0.25=9;0.5=13;1=13;2.5=15;5=16;10=19;30=21;60=21;120=21;300=21;900=21;3600=21;+Inf=21
+host.docker.internal:8092,histogram,vllm:time_per_output_token_seconds,seconds,21,0.1688,0.0643,0.0005,0.0031,0.0000,0.0001,0.0002,0.0005,0.0009,0.0056,0.0070,0.0075,0.0079,mock,Time per output token in seconds.,0.001=11;0.002=11;0.005=12;0.01=21;0.02=21;0.05=21;0.1=21;0.25=21;0.5=21;1=21;2.5=21;5=21;+Inf=21
+host.docker.internal:8092,histogram,vllm:time_to_first_token_seconds,seconds,21,0.1688,5.7944,0.0466,0.2759,0.1389,0.1437,0.1498,0.1679,0.1981,0.2284,0.2465,0.2500,1.5637,mock,Time to first token in seconds.,0.001=0;0.0025=0;0.005=0;0.01=0;0.025=0;0.05=0;0.1=0;0.25=20;0.5=20;1=20;2.5=21;5=21;10=21;30=21;60=21;120=21;300=21;+Inf=21

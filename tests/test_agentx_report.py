@@ -42,6 +42,32 @@ def _make_point(root: Path, target: str, conc: int, ttft: float, tps: float) -> 
         "1,0,1,Output Token Throughput,tokens/sec,avg,110\n",
         encoding="utf-8",
     )
+    records = [
+        {
+            "metadata": {"benchmark_phase": "profiling"},
+            "metrics": {
+                "time_to_first_token": {"value": ttft},
+                "request_latency": {"value": 1200.0},
+            },
+        },
+        {
+            "metadata": {"benchmark_phase": "profiling"},
+            "metrics": {
+                "time_to_first_token": {"value": ttft * 2},
+                "request_latency": {"value": 2400.0},
+            },
+        },
+        {
+            "metadata": {"benchmark_phase": "warmup"},
+            "metrics": {
+                "time_to_first_token": {"value": 9999.0},
+                "request_latency": {"value": 9999.0},
+            },
+        },
+    ]
+    (d / "profile_export.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
+    )
 
 
 def test_discover_and_render(tmp_path: Path) -> None:
@@ -54,11 +80,16 @@ def test_discover_and_render(tmp_path: Path) -> None:
     assert p["cache_theory_pct"] == 95.53
     assert p["cache_server_pct"] == 93.4
     assert p["timeline"]["ttft_p50"] == [160.0, 170.0]
+    # CDF ignores warmup records and exposes profiling-phase percentiles
+    assert p["cdf"]["ttft"][-1][1] == 100.0
+    assert max(x[0] for x in p["cdf"]["ttft"]) == 320.0
+    assert p["interactivity"] == 125.0
 
     html = render_html(points, targets, "/* echarts stub */")
     assert "AgentX 推理性能对比报告" in html
     assert "qwen3-8b" in html and "llama-3-8b" in html
     assert 'id="c-ttft50"' in html
+    assert 'id="c-cdf-ttft"' in html
     assert "echarts" in html
     assert "95.5%" in html
 

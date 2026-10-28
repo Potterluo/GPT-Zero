@@ -1,0 +1,157 @@
+# =============================================================================
+# GPT-Zero v3 — docker compose
+# =============================================================================
+# 常用命令（在仓库根目录执行）：
+#   docker compose build                                  # 构建 gptzero:v3
+#   docker compose up -d mock                             # 起 mock（宿主机 8090）
+#   docker compose --profile bench run --rm bench \
+#       run --url http://mock:8090 --profile coding --concurrency 8 --duration 20 \
+#       --out results/compose-bench.json                  # 一次性压测，结果落 ./results
+#   docker compose --profile agentx run --rm agentx \
+#       replay --url http://mock:8090 --out results/agentx.json
+#   docker compose --profile smoke run --rm smoke         # 容器内离线自检（network none）
+#   docker compose down -v                                # 收尾
+#
+# 端口：宿主机 8090 -> 容器 8090（本机 8080 被 piforged 常驻占用，故避开）。
+# 想换端口：`GPTZERO_PORT=9090 docker compose up -d mock`（同时改 bench 的 --url）。
+# =============================================================================
+
+name: gptzero
+
+x-image: &x-image
+  image: gptzero:v3
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      # 1 = 装 transformers（精确 token 计数，镜像更大）；0 = heuristic 回退（默认，体积小）
+      WITH_TRANSFORMERS: "${WITH_TRANSFORMERS:-0}"
+
+x-env: &x-env
+  GPTZERO_HOST: "0.0.0.0"
+  GPTZERO_PORT: "8090"
+  GPTZERO_TTFT_MS: "${GPTZERO_TTFT_MS:-180}"
+  GPTZERO_TPOT_MS: "${GPTZERO_TPOT_MS:-8}"
+  GPTZERO_JITTER: "${GPTZERO_JITTER:-0.12}"
+  GPTZERO_MAX_CONCURRENCY: "${GPTZERO_MAX_CONCURRENCY:-64}"
+  GPTZERO_CACHE_BLOCKS: "${GPTZERO_CACHE_BLOCKS:-8192}"
+  # auto = 有 transformers 且能读到 deepseek_v3_tokenizer/ 就精确计数，否则 heuristic
+  GPTZERO_TOKENIZER: "${GPTZERO_TOKENIZER:-auto}"
+  GPTZERO_TOOL_CALL_RATIO: "${GPTZERO_TOOL_CALL_RATIO:-0.6}"
+
+services:
+  # ---------------------------------------------------------------------------
+  # mock：常驻 Mock 推理服务
+  # ---------------------------------------------------------------------------
+  mock:
+    <<: *x-image
+    container_name: gptzero-mock
+    command: ["mock"]
+    environment:
+      <<: *x-env
+      GPTZERO_LOG_FILE: /data/requests.jsonl
+    ports:
+      - "${GPTZERO_PORT:-8090}:8090"
+    volumes:
+      # 请求 JSONL 落盘（/data/requests.jsonl），容器重建不丢
+      - ./data:/data
+    # 镜像自带 HEALTHCHECK（/health，纯标准库）；这里显式写一遍方便本地调参
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - >-
+          import os,sys,urllib.request;
+          r=urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=2);
+          sys.exit(0 if r.status == 200 else 1)
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - gptzero
+
+  # ---------------------------------------------------------------------------
+  # bench：一次性压测（profile=bench），结果写宿主 ./results
+  # 未传命令时用下面的默认短测；自定义见文件头的 compose 命令。
+  # ---------------------------------------------------------------------------
+  bench:
+    <<: *x-image
+    profiles: ["bench"]
+    container_name: gptzero-bench
+    entrypoint: ["/app/docker/entrypoint.sh", "bench"]
+    command:
+      - "run"
+      - "--url"
+      - "http://mock:8090"
+      - "--profile"
+      - "coding"
+      - "--concurrency"
+      - "8"
+      - "--duration"
+      - "20"
+      - "--out"
+      - "results/compose-bench.json"
+    environment:
+      GPTZERO_URL: "http://mock:8090"
+      MPLBACKEND: "Agg"
+    volumes:
+      - ./results:/app/results
+      - ./data:/data
+    depends_on:
+      mock:
+        condition: service_healthy
+    # 默认桥接网络（compose 自定义网络），容器内用服务名 mock 访问，不 expose 到宿主机
+    networks:
+      - gptzero
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # agentx：AgentX trace 生成/回放（profile=agentx），结果写宿主 ./results
+  # 子命令以 `python -m agentx` 为准（契约 §5）；默认走 replay。
+  # ---------------------------------------------------------------------------
+  agentx:
+    <<: *x-image
+    profiles: ["agentx"]
+    container_name: gptzero-agentx
+    entrypoint: ["/app/docker/entrypoint.sh", "agentx"]
+    command:
+      - "replay"
+      - "--url"
+      - "http://mock:8090"
+      - "--out"
+      - "results/agentx.json"
+    environment:
+      GPTZERO_URL: "http://mock:8090"
+      MPLBACKEND: "Agg"
+    volumes:
+      - ./results:/app/results
+      - ./agentx:/app/agentx:ro
+    depends_on:
+      mock:
+        condition: service_healthy
+    networks:
+      - gptzero
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # smoke：容器内自检，network=none 证明零外网可用
+  # ---------------------------------------------------------------------------
+  smoke:
+    <<: *x-image
+    profiles: ["smoke"]
+    container_name: gptzero-smoke
+    entrypoint: ["/app/docker/entrypoint.sh", "smoke"]
+    command: []
+    environment:
+      GPTZERO_PORT: "8090"
+      GPTZERO_HOST: "127.0.0.1"
+      MPLBACKEND: "Agg"
+    network_mode: none
+    restart: "no"
+
+networks:
+  gptzero:
+    driver: bridge

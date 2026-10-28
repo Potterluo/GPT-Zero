@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.venv-*/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Runtime artifacts
+logs/
+results/agentx/tmp/
+results/**/tmp/
+results/tmp/
+*.jsonl
+dist/*.tar
+# ops: docker compose 的请求日志卷 / 离线镜像 tar
+data/
+*.tar
+*.tar.gz
+*.tar.sha256
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

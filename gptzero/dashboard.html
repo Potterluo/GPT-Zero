@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GPT-Zero · Mock LLM Console</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121821; --panel-2:#0f141c; --line:#1f2a37;
+    --text:#d7e2ee; --muted:#7b8ea4; --accent:#39d3a3; --accent-2:#5aa9ff;
+    --warn:#ffb454; --bad:#ff6b6b; --good:#39d3a3;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e141d,#0b0f14)}
+  header h1{font-size:16px;margin:0;letter-spacing:.4px}
+  header .sub{color:var(--muted);font-size:12px;margin-left:10px}
+  header .right{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block;margin-right:6px}
+  button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;font-size:12px;cursor:pointer}
+  button:hover{border-color:#2e4054}
+  main{padding:16px 20px 40px;max-width:1500px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 10px}
+  .kpi{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+  .kpi small{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .kv{font-size:12px;color:var(--muted)}
+  .kv b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{color:var(--muted);text-align:left;font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--panel)}
+  td{padding:6px 8px;border-bottom:1px solid #151d28;font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr:hover td{background:#151d28;cursor:pointer}
+  .pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;border:1px solid var(--line)}
+  .ok{color:var(--good);border-color:#1d4d3d;background:#0f2a22}
+  .bad{color:var(--bad);border-color:#4d1d1d;background:#2a0f0f}
+  .warn{color:var(--warn);border-color:#4d3a1d;background:#2a220f}
+  canvas{width:100%;height:56px;display:block}
+  .scroll{max-height:420px;overflow:auto}
+  .muted{color:var(--muted)}
+  .mono{font-family:var(--mono)}
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;max-width:900px;width:90%}
+  dialog pre{white-space:pre-wrap;word-break:break-word;font-size:12px;max-height:60vh;overflow:auto;
+    background:var(--panel-2);padding:12px;border-radius:8px}
+  dialog::backdrop{background:#000a}
+  .final{margin-top:6px;color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>GPT-Zero <span class="sub">Mock LLM · v3 · offline agentic</span></h1></div>
+  <div class="right">
+    <span><span class="dot" id="healthDot"></span><span id="health">connecting…</span></span>
+    <span id="uptime">–</span>
+    <button id="resetBtn">reset stats</button>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <div class="card" style="grid-column:span 3">
+      <h2>Throughput</h2>
+      <div class="kpi" id="rps">0 <small>req/s</small></div>
+      <div class="row" style="margin-top:8px">
+        <div class="kv">in <b id="tpsIn">0</b> tok/s</div>
+        <div class="kv">out <b id="tpsOut">0</b> tok/s</div>
+      </div>
+      <canvas id="sparkRps"></canvas>
+    </div>
+    <div class="card" style="grid-column:span 3">
+      <h2>TTFT (ms)</h2>
+      <div class="kpi" id="ttftP50">0 <small>p50</small></div>
+      <div class="row" style="margin-top:8px">
+        <div class="kv">p90 <b id="ttftP90">0</b></div>
+        <div class="kv">p99 <b id="ttftP99">0</b></div>
+        <div class="kv">max <b id="ttftMax">0</b></div>
+      </div>
+      <canvas id="sparkTtft"></canvas>
+    </div>
+    <div class="card" style="grid-column:span 3">
+      <h2>Prefix cache</h2>
+      <div class="kpi" id="hitRate">0% <small>hit</small></div>
+      <div class="row" style="margin-top:8px">
+        <div class="kv">hit <b id="hitTok">0</b></div>
+        <div class="kv">query <b id="queryTok">0</b></div>
+        <div class="kv">blocks <b id="blocks">0</b></div>
+      </div>
+      <canvas id="sparkHit"></canvas>
+    </div>
+    <div class="card" style="grid-column:span 3">
+      <h2>Workload</h2>
+      <div class="kpi" id="totalReq">0 <small>requests</small></div>
+      <div class="row" style="margin-top:8px">
+        <div class="kv">active <b id="active">0</b></div>
+        <div class="kv">waiting <b id="waiting">0</b></div>
+        <div class="kv">tools <b id="tools">0</b></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div class="kv">failed <b id="failed">0</b></div>
+        <div class="kv">finish <b id="finish">–</b></div>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column:span 8">
+      <h2>Recent requests <span class="muted" style="text-transform:none;letter-spacing:0">· click a row for the payload</span></h2>
+      <div class="scroll">
+        <table id="logTable">
+          <thead><tr>
+            <th>#</th><th>time</th><th>model</th><th>stream</th><th>in</th><th>out</th>
+            <th>ttft</th><th>e2e</th><th>cache</th><th>tools</th><th>finish</th><th>status</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column:span 4">
+      <h2>Latency distribution</h2>
+      <div class="kv">TPOT p50 <b id="tpotP50">0</b> ms · p90 <b id="tpotP90">0</b> ms</div>
+      <div class="kv" style="margin-top:4px">E2E p50 <b id="e2eP50">0</b> ms · p90 <b id="e2eP90">0</b> ms</div>
+      <div class="kv" style="margin-top:4px">prompt p50 <b id="promptP50">0</b> tok · completion p50 <b id="compP50">0</b> tok</div>
+      <h2 style="margin-top:16px">Server config</h2>
+      <div id="config" class="mono" style="font-size:11px;color:var(--muted);line-height:1.6"></div>
+      <div class="final">endpoints: /v1/chat/completions · /metrics · /api/stats · /api/logs · /api/reset</div>
+    </div>
+  </div>
+</main>
+
+<dialog id="detail"><h3 style="margin:0 0 8px;font-size:14px" id="detailTitle"></h3><pre id="detailBody"></pre>
+  <div style="text-align:right"><button onclick="document.getElementById('detail').close()">close</button></div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const API = "";
+let history = {rps:[], ttft:[], hit:[]};
+let selected = null;
+
+function fmt(n, d=1){ if(n===null||n===undefined||Number.isNaN(n)) return "–"; return Number(n).toFixed(d).replace(/\.0+$/,""); }
+function pct(n){ return (Number(n)*100).toFixed(1)+"%"; }
+
+function drawSpark(canvas, series, color){
+  const c = canvas, ctx = c.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  if(c.width !== w*dpr){ c.width = w*dpr; c.height = h*dpr; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  if(series.length < 2) return;
+  const max = Math.max(...series, 1e-9);
+  const n = series.length;
+  ctx.beginPath();
+  series.forEach((v,i)=>{
+    const x = (i/(n-1))*w, y = h - (v/max)*(h-6) - 2;
+    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  ctx.fillStyle = color + "22"; ctx.fill();
+}
+
+async function pollStats(){
+  try{
+    const r = await fetch(API + "/api/stats"); const s = await r.json();
+    $("healthDot").style.background = "var(--good)";
+    $("health").textContent = "online";
+    $("uptime").textContent = "up " + Math.round(s.uptime_s) + "s";
+    $("rps").innerHTML = fmt(s.rps) + " <small>req/s</small>";
+    $("tpsIn").textContent = fmt(s.prompt_tokens_per_s,0);
+    $("tpsOut").textContent = fmt(s.completion_tokens_per_s,0);
+    $("ttftP50").innerHTML = fmt(s.ttft_ms.p50) + " <small>p50</small>";
+    $("ttftP90").textContent = fmt(s.ttft_ms.p90);
+    $("ttftP99").textContent = fmt(s.ttft_ms.p99);
+    $("ttftMax").textContent = fmt(s.ttft_ms.max);
+    $("hitRate").innerHTML = pct(s.cache_hit_rate) + " <small>hit</small>";
+    $("hitTok").textContent = s.cache_hit_tokens;
+    $("queryTok").textContent = s.cache_query_tokens;
+    $("blocks").textContent = (s.cache||{}).blocks_cached ?? 0;
+    $("totalReq").innerHTML = s.total_requests + " <small>requests</small>";
+    $("active").textContent = s.active_requests;
+    $("waiting").textContent = s.waiting_requests;
+    $("tools").textContent = s.tool_calls;
+    $("failed").textContent = s.failed_requests;
+    $("finish").textContent = Object.entries(s.finish_reasons||{}).map(([k,v])=>k+":"+v).join(" ") || "–";
+    $("tpotP50").textContent = fmt(s.tpot_ms.p50);
+    $("tpotP90").textContent = fmt(s.tpot_ms.p90);
+    $("e2eP50").textContent = fmt(s.e2e_ms.p50);
+    $("e2eP90").textContent = fmt(s.e2e_ms.p90);
+    $("promptP50").textContent = fmt(s.prompt_tokens_hist.p50,0);
+    $("compP50").textContent = fmt(s.completion_tokens_hist.p50,0);
+
+    history.rps.push(s.rps); history.ttft.push(s.ttft_ms.p50); history.hit.push(s.cache_hit_rate);
+    Object.keys(history).forEach(k=>{ if(history[k].length>60) history[k].shift(); });
+    drawSpark($("sparkRps"), history.rps, "#5aa9ff");
+    drawSpark($("sparkTtft"), history.ttft, "#ffb454");
+    drawSpark($("sparkHit"), history.hit.map(v=>v*100), "#39d3a3");
+  }catch(e){
+    $("healthDot").style.background = "var(--bad)"; $("health").textContent = "offline";
+  }
+}
+
+async function pollLogs(){
+  try{
+    const r = await fetch(API + "/api/logs?limit=120"); const data = await r.json();
+    const tbody = document.querySelector("#logTable tbody");
+    tbody.innerHTML = data.logs.map(l => {
+      const st = l.status === "success" ? "ok" : (l.status === "aborted" ? "warn" : "bad");
+      return `<tr data-id="${l.id}">
+        <td>${l.id}</td><td>${(l.timestamp||"").slice(11)}</td><td>${l.model||"-"}</td>
+        <td>${l.stream ? "yes" : "no"}</td><td>${l.prompt_tokens??0}</td><td>${l.completion_tokens??0}</td>
+        <td>${fmt(l.ttft_ms)}</td><td>${fmt(l.response_time_ms)}</td>
+        <td>${l.cache_hit_rate!==undefined ? (l.cache_hit_rate*100).toFixed(0)+"%" : "-"}</td>
+        <td>${l.tool_calls??0}</td><td>${l.finish_reason||"-"}</td>
+        <td><span class="pill ${st}">${l.status}</span></td></tr>`;
+    }).join("");
+    tbody.querySelectorAll("tr").forEach(tr=>{
+      tr.onclick = () => showDetail(tr.dataset.id);
+    });
+  }catch(e){}
+}
+
+async function showDetail(id){
+  const r = await fetch(API + "/api/log/" + id);
+  if(!r.ok) return;
+  const entry = await r.json();
+  $("detailTitle").textContent = "request #" + entry.id + " · " + (entry.endpoint||"");
+  $("detailBody").textContent = JSON.stringify(entry, null, 2);
+  $("detail").showModal();
+}
+
+async function pollConfig(){
+  try{
+    const r = await fetch(API + "/api/config"); const c = await r.json();
+    $("config").textContent = [
+      "version   " + c.version,
+      "tokenizer " + c.tokenizer,
+      "timing    ttft=" + c.ttft_ms + "ms tpot=" + c.tpot_ms + "ms",
+      "cache     " + c.cache_blocks + " blocks x " + c.block_size,
+      "concurrency " + c.max_concurrency,
+      "tool ratio " + c.tool_call_ratio
+    ].join("\n");
+  }catch(e){}
+}
+
+$("resetBtn").onclick = async () => {
+  await fetch(API + "/api/reset", {method:"POST"});
+  history = {rps:[],ttft:[],hit:[]};
+  pollStats(); pollLogs();
+};
+
+pollStats(); pollLogs(); pollConfig();
+setInterval(pollStats, 1000);
+setInterval(pollLogs, 2000);
+setInterval(pollConfig, 10000);
+</script>
+</body>
+</html>

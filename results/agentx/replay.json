@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "url": "http://127.0.0.1:8092",
+    "model": "gpt-3.5-turbo",
+    "traces": "agentx/traces",
+    "trace_count": 8,
+    "duration_s": 30.0,
+    "warmup": 10,
+    "primer": true,
+    "start_ratio": [
+      0.25,
+      0.75
+    ],
+    "system_idle_gap_cap_s": 10.0,
+    "trace_idle_gap_cap_s": 300.0,
+    "seed": 42,
+    "chips": null,
+    "generated_at": "2026-10-28T17:00:58+0800",
+    "notes": [
+      "本地 mock 无真实模型：token 内容与质量无意义，只保证 token 计数/流式时序/缓存语义。",
+      "benchmark 时长按分钟级跑（官方下限 900s、默认 3600s），曲线形状可看，绝对值不可与官网对比。",
+      "语料为合成 trace（形状对齐 393 条语料：median in≈142k / out≈444 / 98% cached，规模小 2~3 个数量级）。",
+      "tok/s/chip 需 --chips 显式给芯片数，否则留空。",
+      "不涉及 speculative acceptance / GPU 遥测 / 厂商 chat template。"
+    ]
+  },
+  "runs": [
+    {
+      "concurrency": 1,
+      "duration_s": 35.343,
+      "requests": 3,
+      "warmup_requests": 11,
+      "ok": 3,
+      "failed": 0,
+      "success_rate": 1.0,
+      "valid": true,
+      "ttft_ms": {
+        "p50": 265.145,
+        "p90": 302.476,
+        "p99": 310.875,
+        "mean": 267.579,
+        "max": 311.808
+      },
+      "tpot_ms": {
+        "p50": 8.274,
+        "p90": 8.799,
+        "p99": 8.917,
+        "mean": 8.028,
+        "max": 8.93
+      },
+      "e2e_ms": {
+        "p50": 3979.764,
+        "p90": 5056.723,
+        "p99": 5299.039,
+        "mean": 4338.072,
+        "max": 5325.963
+      },
+      "req_per_s": 0.085,
+      "output_tokens_per_s": 43.54,
+      "total_tokens_per_s": 2517.76,
+      "output_tokens_per_s_per_chip": null,
+      "prompt_tokens": 87447,
+      "completion_tokens": 1539,
+      "cache": {
+        "hits": 87104,
+        "queries": 87447,
+        "hit_rate": 0.9961,
+        "source": "metrics"
+      },
+      "errors": []
+    },
+    {
+      "concurrency": 2,
+      "duration_s": 36.272,
+      "requests": 7,
+      "warmup_requests": 22,
+      "ok": 7,
+      "failed": 0,
+      "success_rate": 1.0,
+      "valid": true,
+      "ttft_ms": {
+        "p50": 248.115,
+        "p90": 277.858,
+        "p99": 287.919,
+        "mean": 238.962,
+        "max": 289.037
+      },
+      "tpot_ms": {
+        "p50": 8.27,
+        "p90": 11.969,
+        "p99": 15.049,
+        "mean": 8.138,
+        "max": 15.391
+      },
+      "e2e_ms": {
+        "p50": 3977.76,
+        "p90": 6544.748,
+        "p99": 7167.312,
+        "mean": 4148.993,
+        "max": 7236.485
+      },
+      "req_per_s": 0.193,
+      "output_tokens_per_s": 93.27,
+      "total_tokens_per_s": 4649.43,
+      "output_tokens_per_s_per_chip": null,
+      "prompt_tokens": 165260,
+      "completion_tokens": 3383,
+      "cache": {
+        "hits": 164160,
+        "queries": 165260,
+        "hit_rate": 0.9933,
+        "source": "metrics"
+      },
+      "errors": []
+    },
+    {
+      "concurrency": 4,
+      "duration_s": 36.52,
+      "requests": 13,
+      "warmup_requests": 44,
+      "ok": 13,
+      "failed": 0,
+      "success_rate": 1.0,
+      "valid": true,
+      "ttft_ms": {
+        "p50": 292.673,
+        "p90": 335.785,
+        "p99": 344.783,
+        "mean": 289.276,
+        "max": 345.471
+      },
+      "tpot_ms": {
+        "p50": 8.172,
+        "p90": 14.309,
+        "p99": 15.324,
+        "mean": 8.134,
+        "max": 15.332
+      },
+      "e2e_ms": {
+        "p50": 3395.743,
+        "p90": 6999.254,
+        "p99": 7398.788,
+        "mean": 3780.898,
+        "max": 7426.261
+      },
+      "req_per_s": 0.356,
+      "output_tokens_per_s": 153.75,
+      "total_tokens_per_s": 8396.32,
+      "output_tokens_per_s_per_chip": null,
+      "prompt_tokens": 301015,
+      "completion_tokens": 5615,
+      "cache": {
+        "hits": 299776,
+        "queries": 301045,
+        "hit_rate": 0.9958,
+        "source": "metrics"
+      },
+      "errors": []
+    }
+  ]
+}

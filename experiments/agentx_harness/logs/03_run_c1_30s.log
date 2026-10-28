@@ -1,0 +1,23 @@
+=== CMD: .venv-agentx\Scripts\agentx.exe profile --url http://127.0.0.1:8097 --endpoint-type chat --streaming --input-file agentx\traces --custom-dataset-type weka-trace --unsafe-override --tokenizer deepseek_v3_tokenizer --model gpt-3.5-turbo --concurrency 1 --benchmark-duration 30 --output-artifact-dir experiments\agentx_harness\out ===
+16:35:24.382 INFO     Starting AIPerf System (_single_run.py:64)
+16:35:25.226 INFO     Scenario 'agentx': setting profiling-phase timing_mode=agentic_replay. (validator.py:226)
+16:35:25.226 INFO     Scenario 'agentx': injecting extra_inputs.ignore_eos=true (was absent). (validator.py:285)
+16:35:25.226 INFO     Scenario 'agentx': auto-set --cache-bust=first_turn_prefix (was at default none). (validator.py:538)
+16:35:25.226 INFO     Scenario 'agentx': auto-set --system-idle-gap-cap-seconds=10.0 (was unset). (validator.py:779)
+16:35:25.226 WARNING  Scenario violation (override active): --custom-dataset-type / --input-file: got 'weka_trace (local, unpinned)', required 'pinned --public-dataset alias or --hf-weka-dataset semianalysisai/cc-traces-weka-062126' (scenario 'agentx' cannot verify corpus identity for a local weka_trace directory; use a with-subagents --public-dataset alias or --hf-weka-dataset semianalysisai/cc-traces-weka-062126 for submission_valid=true, or pass --unsafe-override for offline smoke tests (submission_valid=false)) (validator.py:113)
+16:35:25.226 WARNING  Scenario violation (override active): --benchmark-duration: got 30.0, required '>=900' (scenario 'agentx' requires duration >= 900s to reach steady state and trigger KV offloading) (validator.py:113)
+16:35:25.574 ERROR    Error running Hook(func=<bound method BaseZMQClient._initialize_socket of <ZMQProxyFrontendSocketPULL proxy_frontend_pull_d4962230 (state=initializing)>>, params=None) hook for ZMQProxyFrontendSocketPULL: Failed to initialize ZMQ socket: Address in use (addr='tcp://127.0.0.1:46337') (aiperf_lifecycle_mixin.py:127)
+16:35:25.574 ERROR    Failed for ZMQProxyFrontendSocketPULL (id=proxy_frontend_pull_d4962230): ZMQProxyFrontendSocketPULL._initialize_socket: Failed to initialize ZMQ socket: Address in use (addr='tcp://127.0.0.1:46337') (aiperf_lifecycle_mixin.py:281)
+16:35:25.575 ERROR    Proxy Socket Initialization Failed: [None, CancelledError('')] (zmq_proxy_base.py:180)
+NoneType: None
+16:35:25.575 ERROR    Proxy Socket Initialization Failed:  (zmq_proxy_base.py:204)
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\aiperf\zmq\zmq_proxy_base.py", line 186, in _initialize
+    raise LifecycleOperationError(
+aiperf.common.exceptions.LifecycleOperationError
+16:35:25.575 ERROR    Error running Hook(func=<bound method BaseZMQProxy._initialize of <ZMQ_PUSH_PULL_Proxy ZMQ_PUSH_PULL_Proxy_6efe3e44 (state=initializing)>>, params=None) hook for ZMQ_PUSH_PULL_Proxy:  (aiperf_lifecycle_mixin.py:127)
+16:35:25.575 ERROR    Failed for ZMQ_PUSH_PULL_Proxy (id=ZMQ_PUSH_PULL_Proxy_6efe3e44): ZMQ_PUSH_PULL_Proxy._initialize:  (aiperf_lifecycle_mixin.py:281)

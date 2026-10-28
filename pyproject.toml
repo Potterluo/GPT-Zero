@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gptzero"
+dynamic = ["version"]
+description = "Offline OpenAI-compatible mock inference server for agentic workload benchmarks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "GPT-Zero Contributors" }]
+keywords = ["mock", "llm", "openai", "agentx", "benchmark", "offline"]
+
+dependencies = [
+  "fastapi>=0.109",
+  "uvicorn>=0.20",
+  "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+bench = ["httpx>=0.25", "matplotlib>=3.9", "numpy>=1.26"]
+agentx = ["httpx>=0.25", "matplotlib>=3.9", "numpy>=1.26"]
+tokenizer = ["transformers>=4.40"]
+dev = [
+  "httpx>=0.25",
+  "matplotlib>=3.9",
+  "numpy>=1.26",
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+gptzero = "gptzero.cli:main"
+gptzero-bench = "bench.cli:main"
+gptzero-agentx = "agentx.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "gptzero.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gptzero*", "bench*", "agentx*"]
+
+[tool.setuptools.package-data]
+gptzero = ["dashboard.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120

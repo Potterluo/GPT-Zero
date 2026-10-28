@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock LLM - 管理控制台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e4e4e7;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header .subtitle {
+            color: #71717a;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-label {
+            color: #a1a1aa;
+            font-size: 0.85rem;
+        }
+
+        .status-value {
+            color: #e4e4e7;
+            font-weight: 600;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .card-title {
+            color: #a1a1aa;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e4e4e7;
+        }
+
+        .card-value .unit {
+            font-size: 0.9rem;
+            color: #71717a;
+            font-weight: 400;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            color: #71717a;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #e4e4e7;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .models-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .model-tag {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .model-config-section {
+            margin-top: 10px;
+        }
+
+        .model-path-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .model-path-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e4e4e7;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .model-path-input:focus {
+            outline: none;
+            border-color: rgba(96, 165, 250, 0.5);
+        }
+
+        .scan-btn, .apply-btn {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .scan-btn:hover, .apply-btn:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+
+        .apply-btn {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .apply-btn:hover {
+            background: rgba(34, 197, 94, 0.25);
+        }
+
+        .current-path {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .path-label {
+            color: #71717a;
+        }
+
+        .path-value {
+            color: #60a5fa;
+        }
+
+        .scan-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .scan-result.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .scan-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scan-path-display {
+            color: #71717a;
+            font-size: 0.8rem;
+        }
+
+        .scan-count {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .scan-result.error .scan-count {
+            color: #ef4444;
+        }
+
+        .model-search-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .model-search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e4e4e7;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .model-search-input:focus {
+            outline: none;
+            border-color: rgba(167, 139, 250, 0.5);
+        }
+
+        .search-btn {
+            background: rgba(167, 139, 250, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .search-btn:hover {
+            background: rgba(167, 139, 250, 0.25);
+        }
+
+        .search-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(167, 139, 250, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(167, 139, 250, 0.2);
+        }
+
+        .search-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .search-count {
+            color: #a78bfa;
+            font-weight: 600;
+        }
+
+        .search-result-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .search-result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .search-item-name {
+            color: #e4e4e7;
+            font-size: 0.85rem;
+        }
+
+        .search-item-score {
+            color: #a78bfa;
+            font-size: 0.75rem;
+        }
+
+        .tokenizer-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .tokenizer-select {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e4e4e7;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .tokenizer-select option {
+            background: #1a1a2e;
+            color: #e4e4e7;
+        }
+
+        .refresh-icon {
+            cursor: pointer;
+            padding: 8px;
+            background: rgba(96, 165, 250, 0.15);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .refresh-icon:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+
+        .logs-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logs-title {
+            color: #e4e4e7;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .refresh-btn {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .logs-table th {
+            text-align: left;
+            color: #71717a;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .logs-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .logs-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .logs-table tr {
+            cursor: pointer;
+        }
+
+        .method-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .method-post {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .method-get {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+        }
+
+        .status-success {
+            color: #22c55e;
+        }
+
+        .status-error {
+            color: #ef4444;
+        }
+
+        .stream-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: rgba(167, 139, 250, 0.15);
+            color: #a78bfa;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .detail-btn {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .detail-btn:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+
+        .empty-logs {
+            text-align: center;
+            color: #71717a;
+            padding: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #71717a;
+            padding: 40px;
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            color: #e4e4e7;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #71717a;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #e4e4e7;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section-title {
+            color: #a1a1aa;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e4e4e7;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .modal-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .modal-info-item {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .modal-info-label {
+            color: #71717a;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .modal-info-value {
+            color: #e4e4e7;
+            font-size: 1rem;
+        }
+
+        .token-calculation {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .token-calc-btn {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .token-calc-btn:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+
+        .token-calc-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .token-result {
+            margin-top: 15px;
+            background: rgba(34, 197, 94, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .token-result.active {
+            display: block;
+        }
+
+        .token-result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .token-result-item:last-child {
+            margin-bottom: 0;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .token-result-label {
+            color: #71717a;
+        }
+
+        .token-result-value {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .logs-table {
+                font-size: 0.8rem;
+            }
+
+            .logs-table th,
+            .logs-table td {
+                padding: 8px;
+            }
+
+            .modal-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Mock LLM Server</h1>
+            <p class="subtitle">OpenAI 兼容 API 模拟服务器 - 管理控制台</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot"></span>
+                <span class="status-label">运行状态:</span>
+                <span class="status-value">在线</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">监听地址:</span>
+                <span class="status-value" id="server-host">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">端口:</span>
+                <span class="status-value" id="server-port">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Transformers:</span>
+                <span class="status-value" id="transformers-status">-</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">总请求数 <span style="font-size: 0.7rem; color: #71717a; font-weight: normal;">(历史累计)</span></div>
+                <div class="card-value" id="total-requests">0</div>
+            </div>
+            <div class="card">
+                <div class="card-title">显示日志 <span style="font-size: 0.7rem; color: #71717a; font-weight: normal;">(最近100条)</span></div>
+                <div class="card-value" id="displayed-logs">0</div>
+            </div>
+            <div class="card">
+                <div class="card-title">总 Token 数</div>
+                <div class="card-value" id="total-tokens">0</div>
+            </div>
+            <div class="card">
+                <div class="card-title">平均 Token/请求</div>
+                <div class="card-value" id="avg-tokens">0 <span class="unit">tokens</span></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Token 统计</div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Prompt Tokens</div>
+                        <div class="stat-value" id="prompt-tokens">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Completion Tokens</div>
+                        <div class="stat-value" id="completion-tokens">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">
+                    <span>模型配置</span>
+                    <span style="font-size: 0.7rem; color: #71717a;">自定义路径 + 模糊匹配</span>
+                </div>
+                <div class="model-config-section">
+                    <div class="model-path-input-group">
+                        <input type="text" class="model-path-input" id="model-path-input"
+                               placeholder="输入模型目录路径..." />
+                        <button class="scan-btn" onclick="scanCustomPath()">扫描</button>
+                        <button class="apply-btn" onclick="applyModelDir()">应用</button>
+                    </div>
+                    <div class="model-search-group">
+                        <input type="text" class="model-search-input" id="model-search-input"
+                               placeholder="搜索模型名 (支持模糊匹配)..." />
+                        <button class="search-btn" onclick="searchModels()">搜索</button>
+                    </div>
+                    <div class="search-result" id="search-result" style="display: none;">
+                        <div class="search-result-header">
+                            <span id="search-query-display">-</span>
+                            <span class="search-count" id="search-count">0 个匹配</span>
+                        </div>
+                        <div class="search-result-list" id="search-result-list"></div>
+                    </div>
+                    <div class="current-path">
+                        <span class="path-label">当前目录:</span>
+                        <span class="path-value" id="current-model-dir">-</span>
+                    </div>
+                    <div class="scan-result" id="scan-result" style="display: none;">
+                        <div class="scan-result-header">
+                            <span id="scan-path-display">-</span>
+                            <span class="scan-count" id="scan-count">0 个模型</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">
+                    <span>可用模型</span>
+                    <span style="font-size: 0.7rem; color: #71717a;">Token计算</span>
+                </div>
+                <div class="tokenizer-selector">
+                    <select class="tokenizer-select" id="tokenizer-select">
+                        <option value="">使用默认 Tokenizer (DeepSeek V3)</option>
+                    </select>
+                    <span class="refresh-icon" onclick="loadModelList()" title="刷新模型列表">🔄</span>
+                </div>
+                <div class="models-list" id="available-models-list" style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                    <span class="model-tag" style="color: #71717a;">加载中...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="logs-section">
+            <div class="logs-header">
+                <h2 class="logs-title">请求日志</h2>
+                <button class="refresh-btn" onclick="refreshLogs()">刷新</button>
+            </div>
+            <div id="logs-content">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">请求详情</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-section">
+                <div class="modal-section-title">基本信息</div>
+                <div class="modal-info" id="modal-info">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+            <div class="modal-section">
+                <div class="modal-section-title">请求内容</div>
+                <div class="modal-content" id="modal-request">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+            <div class="modal-section">
+                <div class="modal-section-title">Token 计算</div>
+                <div class="tokenizer-selector">
+                    <select class="tokenizer-select" id="modal-tokenizer-select">
+                        <option value="">使用默认 Tokenizer (DeepSeek V3)</option>
+                    </select>
+                    <span class="refresh-icon" onclick="syncModalTokenizer()" title="同步模型列表">🔄</span>
+                </div>
+                <div class="token-calculation">
+                    <button class="token-calc-btn" id="calc-btn" onclick="calculateTokens()">计算 Token 数</button>
+                    <div class="token-result" id="token-result">
+                        <div class="token-result-item">
+                            <span class="token-result-label">Prompt Tokens:</span>
+                            <span class="token-result-value" id="result-prompt">0</span>
+                        </div>
+                        <div class="token-result-item">
+                            <span class="token-result-label">Completion Tokens:</span>
+                            <span class="token-result-value" id="result-completion">0</span>
+                        </div>
+                        <div class="token-result-item">
+                            <span class="token-result-label">Total Tokens:</span>
+                            <span class="token-result-value" id="result-total">0</span>
+                        </div>
+                        <div class="token-result-item" style="margin-top: 10px; font-size: 0.8rem; color: #71717a;">
+                            <span id="result-tokenizer">使用默认 tokenizer</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentLogData = null;
+        let availableModels = [];
+
+        async function fetchConfig() {
+            try {
+                const res = await fetch(`${API_BASE}/api/config`);
+                const data = await res.json();
+                document.getElementById('server-host').textContent = data.host;
+                document.getElementById('server-port').textContent = data.port;
+                document.getElementById('transformers-status').textContent = data.transformers_available ? '已启用' : '未启用';
+                document.getElementById('transformers-status').style.color = data.transformers_available ? '#22c55e' : '#f59e0b';
+
+                const modelsList = document.getElementById('models-list');
+                modelsList.innerHTML = data.models.map(m =>
+                    `<span class="model-tag">${m}</span>`
+                ).join('');
+            } catch (e) {
+                console.error('Failed to fetch config:', e);
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/stats`);
+                const data = await res.json();
+                document.getElementById('total-requests').textContent = data.total_requests.toLocaleString();
+                document.getElementById('displayed-logs').textContent = data.displayed_logs;
+                document.getElementById('total-tokens').textContent = data.total_tokens.toLocaleString();
+                document.getElementById('avg-tokens').innerHTML = `${data.avg_tokens_per_request} <span class="unit">tokens</span>`;
+                document.getElementById('prompt-tokens').textContent = data.prompt_tokens.toLocaleString();
+                document.getElementById('completion-tokens').textContent = data.completion_tokens.toLocaleString();
+            } catch (e) {
+                console.error('Failed to fetch stats:', e);
+            }
+        }
+
+        async function fetchLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/api/logs`);
+                const data = await res.json();
+                renderLogs(data.logs);
+            } catch (e) {
+                console.error('Failed to fetch logs:', e);
+                document.getElementById('logs-content').innerHTML = '<div class="empty-logs">加载失败</div>';
+            }
+        }
+
+        async function loadModelList() {
+            try {
+                const res = await fetch(`${API_BASE}/api/models`);
+                const data = await res.json();
+                availableModels = data.models || [];
+
+                // 更新当前目录显示
+                document.getElementById('current-model-dir').textContent = data.model_dir || '-';
+
+                // 更新下拉选择器
+                const select = document.getElementById('tokenizer-select');
+                select.innerHTML = '<option value="">使用默认 Tokenizer (DeepSeek V3)</option>';
+
+                availableModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.path;
+                    option.textContent = model.name + (model.has_tokenizer ? ' ✓' : '');
+                    option.style.color = model.has_tokenizer ? '#22c55e' : '#71717a';
+                    select.appendChild(option);
+                });
+
+                // 更新可用模型列表显示
+                const modelsList = document.getElementById('available-models-list');
+                if (availableModels.length === 0) {
+                    modelsList.innerHTML = '<span class="model-tag" style="color: #71717a;">目录中无模型</span>';
+                } else {
+                    modelsList.innerHTML = availableModels.map(model =>
+                        `<span class="model-tag" style="border-color: ${model.has_tokenizer ? 'rgba(34, 197, 94, 0.3)' : 'rgba(96, 165, 250, 0.3)'}; color: ${model.has_tokenizer ? '#22c55e' : '#60a5fa'};">
+                            ${model.name}${model.has_tokenizer ? ' ✓' : ''}
+                        </span>`
+                    ).join('');
+                }
+            } catch (e) {
+                console.error('Failed to load model list:', e);
+            }
+        }
+
+        async function scanCustomPath() {
+            const pathInput = document.getElementById('model-path-input');
+            const customPath = pathInput.value.trim();
+
+            if (!customPath) {
+                alert('请输入模型目录路径');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/models/scan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: customPath })
+                });
+
+                const data = await res.json();
+
+                const scanResult = document.getElementById('scan-result');
+                const scanCount = document.getElementById('scan-count');
+                const scanPathDisplay = document.getElementById('scan-path-display');
+
+                scanResult.style.display = 'block';
+
+                if (data.success) {
+                    scanResult.classList.remove('error');
+                    scanCount.textContent = `${data.total} 个模型`;
+                    scanPathDisplay.textContent = data.path;
+
+                    // 更新下拉选择器
+                    const select = document.getElementById('tokenizer-select');
+                    data.models.forEach(model => {
+                        // 检查是否已存在
+                        const existing = select.querySelector(`option[value="${model.path}"]`);
+                        if (!existing) {
+                            const option = document.createElement('option');
+                            option.value = model.path;
+                            option.textContent = model.name + (model.has_tokenizer ? ' ✓' : '');
+                            option.style.color = model.has_tokenizer ? '#22c55e' : '#71717a';
+                            select.appendChild(option);
+                        }
+                    });
+
+                    // 更新可用模型列表
+                    availableModels = data.models;
+                    const modelsList = document.getElementById('available-models-list');
+                    if (availableModels.length === 0) {
+                        modelsList.innerHTML = '<span class="model-tag" style="color: #71717a;">目录中无模型</span>';
+                    } else {
+                        modelsList.innerHTML = availableModels.map(model =>
+                            `<span class="model-tag" style="border-color: ${model.has_tokenizer ? 'rgba(34, 197, 94, 0.3)' : 'rgba(96, 165, 250, 0.3)'}; color: ${model.has_tokenizer ? '#22c55e' : '#60a5fa'};">
+                                ${model.name}${model.has_tokenizer ? ' ✓' : ''}
+                            </span>`
+                        ).join('');
+                    }
+                } else {
+                    scanResult.classList.add('error');
+                    scanCount.textContent = '扫描失败';
+                    scanPathDisplay.textContent = data.error;
+                }
+            } catch (e) {
+                console.error('Scan failed:', e);
+                alert('扫描失败: ' + e.message);
+            }
+        }
+
+        async function applyModelDir() {
+            const pathInput = document.getElementById('model-path-input');
+            const newDir = pathInput.value.trim();
+
+            if (!newDir) {
+                alert('请输入模型目录路径');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/config/model-dir`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_dir: newDir })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    alert('应用失败: ' + (error.detail || '未知错误'));
+                    return;
+                }
+
+                const data = await res.json();
+
+                // 更新显示
+                document.getElementById('current-model-dir').textContent = data.model_dir;
+
+                // 更新可用模型列表
+                availableModels = data.models || [];
+                const modelsList = document.getElementById('available-models-list');
+                if (availableModels.length === 0) {
+                    modelsList.innerHTML = '<span class="model-tag" style="color: #71717a;">目录中无模型</span>';
+                } else {
+                    modelsList.innerHTML = availableModels.map(model =>
+                        `<span class="model-tag" style="border-color: ${model.has_tokenizer ? 'rgba(34, 197, 94, 0.3)' : 'rgba(96, 165, 250, 0.3)'}; color: ${model.has_tokenizer ? '#22c55e' : '#60a5fa'};">
+                            ${model.name}${model.has_tokenizer ? ' ✓' : ''}
+                        </span>`
+                    ).join('');
+                }
+
+                // 更新下拉选择器
+                const select = document.getElementById('tokenizer-select');
+                select.innerHTML = '<option value="">使用默认 Tokenizer (DeepSeek V3)</option>';
+                availableModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.path;
+                    option.textContent = model.name + (model.has_tokenizer ? ' ✓' : '');
+                    option.style.color = model.has_tokenizer ? '#22c55e' : '#71717a';
+                    select.appendChild(option);
+                });
+
+                // 清空输入框
+                pathInput.value = '';
+
+                alert(`已应用新模型目录: ${data.model_dir}\n发现 ${data.available_models} 个模型`);
+            } catch (e) {
+                console.error('Apply failed:', e);
+                alert('应用失败: ' + e.message);
+            }
+        }
+
+        async function searchModels() {
+            const searchInput = document.getElementById('model-search-input');
+            const query = searchInput.value.trim();
+
+            if (!query) {
+                alert('请输入搜索关键词');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/models/search?query=${encodeURIComponent(query)}`);
+                const data = await res.json();
+
+                const searchResult = document.getElementById('search-result');
+                const searchCount = document.getElementById('search-count');
+                const searchQueryDisplay = document.getElementById('search-query-display');
+                const searchResultList = document.getElementById('search-result-list');
+
+                searchResult.style.display = 'block';
+                searchQueryDisplay.textContent = `搜索: "${query}"`;
+                searchCount.textContent = `${data.total} 个匹配`;
+
+                if (data.total === 0) {
+                    searchResultList.innerHTML = '<div style="color: #71717a; font-size: 0.85rem; padding: 8px;">未找到匹配模型</div>';
+                } else {
+                    searchResultList.innerHTML = data.results.map(model =>
+                        `<div class="search-result-item" onclick="selectSearchModel('${model.path}', '${model.name}')">
+                            <span class="search-item-name">${model.name}${model.has_tokenizer ? ' ✓' : ''}</span>
+                            <span class="search-item-score">${model.match_score ? model.match_score.toFixed(1) + '%' : ''}</span>
+                        </div>`
+                    ).join('');
+                }
+            } catch (e) {
+                console.error('Search failed:', e);
+                alert('搜索失败: ' + e.message);
+            }
+        }
+
+        function selectSearchModel(path, name) {
+            // 将选中的模型添加到 tokenizer 选择器
+            const select = document.getElementById('tokenizer-select');
+
+            // 检查是否已存在
+            const existing = select.querySelector(`option[value="${path}"]`);
+            if (!existing) {
+                const option = document.createElement('option');
+                option.value = path;
+                option.textContent = name + ' (搜索匹配)';
+                option.style.color = '#a78bfa';
+                select.appendChild(option);
+            }
+
+            // 选中新添加的选项
+            select.value = path;
+
+            // 隐藏搜索结果
+            document.getElementById('search-result').style.display = 'none';
+            document.getElementById('model-search-input').value = '';
+        }
+
+        function renderLogs(logs) {
+            const container = document.getElementById('logs-content');
+
+            if (logs.length === 0) {
+                container.innerHTML = '<div class="empty-logs">暂无请求记录</div>';
+                return;
+            }
+
+            const html = `
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>方法</th>
+                            <th>端点</th>
+                            <th>模型</th>
+                            <th>Prompt</th>
+                            <th>Total</th>
+                            <th>请求预览</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${logs.map((log, index) => `
+                            <tr onclick="showLogDetail(${index})">
+                                <td>${log.timestamp}</td>
+                                <td><span class="method-tag ${log.method === 'POST' ? 'method-post' : 'method-get'}">${log.method}</span></td>
+                                <td>${log.endpoint}</td>
+                                <td>${log.model}</td>
+                                <td>${log.prompt_tokens}</td>
+                                <td>${log.total_tokens}</td>
+                                <td>${log.request_preview || '-'} ${log.stream ? '<span class="stream-badge">流式</span>' : ''}</td>
+                                <td class="${log.status === 'success' ? 'status-success' : 'status-error'}">${log.status}</td>
+                                <td><button class="detail-btn" onclick="event.stopPropagation(); showLogDetail(${index})">详情</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        async function showLogDetail(index) {
+            try {
+                const res = await fetch(`${API_BASE}/api/log/${index}`);
+                const log = await res.json();
+                currentLogData = log;
+
+                // 填充基本信息
+                const infoHtml = `
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">时间</div>
+                        <div class="modal-info-value">${log.timestamp}</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">端点</div>
+                        <div class="modal-info-value">${log.endpoint}</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">模型</div>
+                        <div class="modal-info-value">${log.model}</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">状态</div>
+                        <div class="modal-info-value ${log.status === 'success' ? 'status-success' : 'status-error'}">${log.status}</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">响应时间</div>
+                        <div class="modal-info-value">${log.response_time || '-'}</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">流式</div>
+                        <div class="modal-info-value">${log.stream ? '是' : '否'}</div>
+                    </div>
+                `;
+                document.getElementById('modal-info').innerHTML = infoHtml;
+
+                // 填充请求内容
+                const requestContent = log.request_body ? JSON.stringify(log.request_body, null, 2) : '无';
+                document.getElementById('modal-request').textContent = requestContent;
+
+                // 重置 token 计算
+                document.getElementById('token-result').classList.remove('active');
+
+                // 同步弹窗中的 tokenizer 选择器
+                syncModalTokenizer();
+
+                // 显示弹窗
+                document.getElementById('detailModal').classList.add('active');
+            } catch (e) {
+                console.error('Failed to fetch log detail:', e);
+                alert('加载详情失败');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+            currentLogData = null;
+        }
+
+        async function calculateTokens() {
+            if (!currentLogData || !currentLogData.request_body) {
+                alert('请求数据不可用');
+                return;
+            }
+
+            const btn = document.getElementById('calc-btn');
+            const tokenizerPath = document.getElementById('modal-tokenizer-select').value;
+
+            btn.disabled = true;
+            btn.textContent = '计算中...';
+
+            try {
+                const payload = {
+                    messages: currentLogData.request_body.messages || [],
+                    completion: "",
+                    tokenizer_path: tokenizerPath || null
+                };
+
+                const res = await fetch(`${API_BASE}/api/tokens`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                document.getElementById('result-prompt').textContent = data.tokens.prompt_tokens;
+                document.getElementById('result-completion').textContent = data.tokens.completion_tokens;
+                document.getElementById('result-total').textContent = data.tokens.total_tokens;
+                document.getElementById('result-tokenizer').textContent = data.tokenizer_used;
+
+                document.getElementById('token-result').classList.add('active');
+            } catch (e) {
+                console.error('Token calculation failed:', e);
+                alert('Token 计算失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '计算 Token 数';
+            }
+        }
+
+        function syncModalTokenizer() {
+            // 同步主页面选择器到弹窗选择器
+            const mainSelect = document.getElementById('tokenizer-select');
+            const modalSelect = document.getElementById('modal-tokenizer-select');
+
+            modalSelect.innerHTML = mainSelect.innerHTML;
+        }
+
+        function refreshLogs() {
+            fetchStats();
+            fetchLogs();
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // 初始化
+        fetchConfig();
+        fetchStats();
+        fetchLogs();
+        loadModelList();
+
+        // 定时刷新（2秒间隔）
+        setInterval(refreshLogs, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# 可选：精确 token 计数（`--tokenizer auto` 加载仓库内 deepseek_v3_tokenizer/）。
+# 只有 `--build-arg WITH_TRANSFORMERS=1` 时才会被安装；默认不装，走 heuristic 回退。
+# 注意：transformers 只装 CPU 版依赖（tokenizers / huggingface_hub / safetensors 等），
+# 不需要 torch，因此不会拖进 CUDA 相关的大包。
+transformers>=4.40,<6

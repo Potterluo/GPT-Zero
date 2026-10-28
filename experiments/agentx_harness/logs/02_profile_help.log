@@ -1,0 +1,645 @@
+Usage: agentx profile [OPTIONS]
+
+Run the Profile subcommand.                                                    
+
+Benchmark generative AI models and measure performance metrics including       
+throughput, latency, token statistics, and resource utilization.
+
++- Endpoint ------------------------------------------------------------------+
+| --model-names --model -m      Model name(s) to be benchmarked. Can be a     |
+|                               comma-separated list or a single model name.  |
+|                               [default: []]                                 |
+| --model-selection-strategy    When multiple models are specified, this is   |
+|                               how a specific model should be assigned to a  |
+|                               prompt. round_robin: nth prompt in the list   |
+|                               gets assigned to n-mod len(models). random:   |
+|                               assignment is uniformly random [choices:      |
+|                               round-robin, random, weighted] [default:      |
+|                               round-robin]                                  |
+| --custom-endpoint --endpoint  Set a custom API endpoint path (e.g.,         |
+|                               /v1/custom, /my-api/chat). By default,        |
+|                               endpoints follow OpenAI-compatible paths like |
+|                               /v1/chat/completions. Use this option to      |
+|                               override the default path for non-standard    |
+|                               API implementations.                          |
+| --endpoint-type               The API endpoint type to benchmark.           |
+|                               Determines request/response format and        |
+|                               supported features. Common types: chat        |
+|                               (multi-modal conversations), embeddings       |
+|                               (vector generation), completions (text        |
+|                               completion). See enum documentation for all   |
+|                               supported endpoint types. [choices: chat,     |
+|                               cohere-rankings, completions, responses,      |
+|                               messages, chat-embeddings, embeddings,        |
+|                               hf-tei-rankings, huggingface-generate,        |
+|                               image-generation, image-edit,                 |
+|                               video-generation, image-retrieval,            |
+|                               nim-embeddings, nim-rankings, solido-rag,     |
+|                               raw, template] [default: chat]                |
+| --streaming                   Enable streaming responses. When enabled, the |
+|                               server streams tokens incrementally as they   |
+|                               are generated. Automatically disabled if the  |
+|                               selected endpoint type does not support       |
+|                               streaming. Enables measurement of             |
+|                               time-to-first-token (TTFT) and inter-token    |
+|                               latency (ITL) metrics. [default: False]       |
+| --url -u                      Base URL(s) of the API server(s) to           |
+|                               benchmark. Multiple URLs can be specified for |
+|                               load balancing across multiple instances      |
+|                               (e.g., --url http://server1:8000 --url        |
+|                               http://server2:8000). The endpoint path is    |
+|                               automatically appended based on               |
+|                               --endpoint-type (e.g., /v1/chat/completions   |
+|                               for chat). URLs that do not include a scheme  |
+|                               (no ://) have http:// prepended               |
+|                               automatically. [default:                      |
+|                               ['http://localhost:8000']]                    |
+| --url-strategy                Strategy for selecting URLs when multiple     |
+|                               --url values are provided. 'round_robin'      |
+|                               (default): distribute requests evenly across  |
+|                               URLs in sequential order. [choices:           |
+|                               round-robin] [default: round-robin]           |
+| --request-timeout-seconds     Maximum time in seconds to wait for each HTTP |
+|                               request to complete, including connection     |
+|                               establishment, request transmission, and      |
+|                               response receipt. Applies to both streaming   |
+|                               and non-streaming requests. Requests          |
+|                               exceeding this timeout are cancelled and      |
+|                               recorded as failures. [default: 21600]        |
+| --wait-for-model-timeout      Seconds to wait for endpoint readiness before |
+|                               benchmarking (0 = skip). Sends a real         |
+|                               inference request to verify the model is      |
+|                               loaded and can generate output. [default:     |
+|                               0.0]                                          |
+| --wait-for-model-mode         How readiness probes the endpoint: 'models'   |
+|                               checks /v1/models, 'inference' sends a canned |
+|                               one-token inference request, and 'both' runs  |
+|                               the models check before inference. [choices:  |
+|                               models, inference, both] [default: inference] |
+| --wait-for-model-interval     Seconds between endpoint readiness probe      |
+|                               attempts. [default: 5.0]                      |
+| --api-key                     API authentication key for the endpoint. When |
+|                               provided, automatically included in request   |
+|                               headers as Authorization: Bearer <api_key>.   |
+| --transport --transport-type  Transport protocol to use for API requests.   |
+|                               If not specified, auto-detected from the URL  |
+|                               scheme (http/https -> TransportType.HTTP).    |
+|                               Currently supports http transport using       |
+|                               aiohttp with connection pooling, TCP          |
+|                               optimization, and Server-Sent Events (SSE)    |
+|                               for streaming. Explicit override rarely       |
+|                               needed. [choices: http]                       |
+| --use-legacy-max-tokens       Use the legacy 'max_tokens' field instead of  |
+|                               'max_completion_tokens' in request payloads.  |
+|                               The OpenAI API now prefers                    |
+|                               'max_completion_tokens', but some older APIs  |
+|                               or implementations may require 'max_tokens'.  |
+|                               [default: False]                              |
+| --use-server-token-count      Use server-reported token counts from API     |
+|                               usage fields instead of client-side           |
+|                               tokenization. When enabled, tokenizers are    |
+|                               still loaded (needed for dataset generation)  |
+|                               but tokenizer.encode() is not called for      |
+|                               computing metrics. Token count fields will be |
+|                               None if the server does not provide usage     |
+|                               information. For OpenAI-compatible streaming  |
+|                               endpoints (chat/completions),                 |
+|                               stream_options.include_usage is automatically |
+|                               configured when this flag is enabled.         |
+|                               [default: False]                              |
+| --connection-reuse-strategy   Transport connection reuse strategy. 'pooled' |
+|                               (default): connections are pooled and reused  |
+|                               across all requests. 'never': new connection  |
+|                               for each request, closed after response.      |
+|                               'sticky-user-sessions': connection persists   |
+|                               across turns of a multi-turn conversation,    |
+|                               closed on final turn (enables sticky load     |
+|                               balancing). [choices: pooled, never,          |
+|                               sticky-user-sessions] [default: pooled]       |
+| --download-video-content      For video generation endpoints, download the  |
+|                               video content after generation completes.     |
+|                               When enabled, request latency includes the    |
+|                               video download time. When disabled (default), |
+|                               only generation time is measured. [default:   |
+|                               False]                                        |
+| --request-content-type        Content type for request body serialization.  |
+|                               By default, requests are sent as              |
+|                               'application/json'. Set to                    |
+|                               'multipart/form-data' for servers that        |
+|                               require form-encoded requests (e.g., vLLM     |
+|                               video generation endpoints). [choices:        |
+|                               application-json, multipart-form-data]        |
+| --session-header              HTTP header name used to carry the            |
+|                               per-session affinity identifier. When set,    |
+|                               replaces the default X-Correlation-ID header  |
+|                               with the provided name (e.g.,                 |
+|                               --session-header X-Session-ID).               |
+| --uuid-and-strip              Enable AIPerf-managed image stripping for     |
+|                               vLLM's multimodal processor cache.            |
+|                               Dataset-authored image UUIDs, including       |
+|                               UUID-only cache references, always pass       |
+|                               through on the chat endpoint; this flag only  |
+|                               strips repeated content after AIPerf observes |
+|                               it in the same session. Automatic stripping   |
+|                               supports only single_turn datasets with       |
+|                               session_id-grouped rows; multi_turn is        |
+|                               rejected. The server cache must cover the     |
+|                               working set, and requests in a session must   |
+|                               reach a replica that retains earlier UUIDs.   |
+|                               [default: False]                              |
++-----------------------------------------------------------------------------+
++- Input ---------------------------------------------------------------------+
+| --extra-inputs                Additional input parameters to include in     |
+|                               every API request payload. Specify as         |
+|                               key:value pairs (e.g., --extra-inputs         |
+|                               temperature:0.7 top_p:0.9) or as JSON string  |
+|                               (e.g., '{"temperature": 0.7}'). These         |
+|                               parameters are merged with request-specific   |
+|                               inputs and sent directly to the endpoint API. |
+|                               [default: []]                                 |
+| --header -H                   Custom HTTP headers to include with every     |
+|                               request. Specify as Header:Value pairs (e.g., |
+|                               --header X-Custom-Header:value) or as JSON    |
+|                               string. Can be specified multiple times.      |
+|                               Useful for custom authentication, tracking,   |
+|                               or API-specific requirements. Combined with   |
+|                               auto-generated headers (e.g., Authorization   |
+|                               from --api-key). [default: []]                |
+| --input-file                  Path to file or directory containing          |
+|                               benchmark dataset. Required when using        |
+|                               --custom-dataset-type. Supported formats      |
+|                               depend on dataset type: JSONL for             |
+|                               single_turn/multi_turn, JSONL for             |
+|                               mooncake_trace/bailian_trace (timestamped     |
+|                               traces), Parquet for baseten_trace,           |
+|                               directories for random_pool. File is parsed   |
+|                               according to --custom-dataset-type            |
+|                               specification.                                |
+| --public-dataset              Pre-configured public dataset to download and |
+|                               use for benchmarking (e.g., sharegpt). AIPerf |
+|                               automatically downloads and parses these      |
+|                               datasets. Mutually exclusive with             |
+|                               --custom-dataset-type. Run aiperf plugins     |
+|                               public_dataset_loader to list available       |
+|                               datasets. Use --hf-subset to override the     |
+|                               HuggingFace subset/config for HF-backed       |
+|                               datasets. [choices: exgentic-v2, exgentic,    |
+|                               sharegpt, aimo, mmstar, mmvu, vision-arena,   |
+|                               llava-onevision, aimo-aime, aimo-numina-cot,  |
+|                               aimo-numina-1-5, spec-bench, spec-al-gsm8-k,  |
+|                               spec-al-math500, spec-al-humaneval,           |
+|                               spec-al-mbpp, spec-al-mtbench,                |
+|                               instruct-coder, blazedit-5-k, blazedit-10-k,  |
+|                               librispeech, voxpopuli, gigaspeech, ami,      |
+|                               spgispeech, semianalysis-cc-traces-weka,      |
+|                               semianalysis-cc-traces-weka-no-subagents,     |
+|                               semianalysis-cc-traces-weka-with-subagents,   |
+|                               semianalysis-cc-traces-weka-with-subagents-25 |
+|                               6-k,                                          |
+|                               semianalysis-cc-traces-weka-with-subagents-06 |
+|                               0226,                                         |
+|                               semianalysis-cc-traces-weka-with-subagents-06 |
+|                               0226-256-k,                                   |
+|                               semianalysis-cc-traces-weka-with-subagents-06 |
+|                               0526,                                         |
+|                               semianalysis-cc-traces-weka-with-subagents-06 |
+|                               0526-256-k,                                   |
+|                               semianalysis-cc-traces-weka-with-subagents-06 |
+|                               0826,                                         |
+|                               semianalysis-cc-traces-weka-with-subagents-06 |
+|                               0826-256-k,                                   |
+|                               semianalysis-cc-traces-weka-061326,           |
+|                               semianalysis-cc-traces-weka-061326-256-k,     |
+|                               semianalysis-cc-traces-weka-061526,           |
+|                               semianalysis-cc-traces-weka-061526-256-k,     |
+|                               semianalysis-cc-traces-weka-062126,           |
+|                               semianalysis-cc-traces-weka-062126-256-k,     |
+|                               weka-hf]                                      |
+| --hf-subset                   HuggingFace dataset subset/config name to     |
+|                               override the plugin default (e.g.             |
+|                               sharegpt4o). Only applies when using          |
+|                               --public-dataset with a HuggingFace-backed    |
+|                               loader. Takes priority over the subset        |
+|                               defined in the plugin registry.               |
+| --hf-weka-dataset             HuggingFace dataset repo for the generic Weka |
+|                               loader (e.g.                                  |
+|                               semianalysisai/cc-traces-weka-061526).        |
+|                               Passing this auto-selects --public-dataset    |
+|                               weka_hf, so the repo flag works on its own;   |
+|                               setting it alongside any other                |
+|                               --public-dataset or --custom-dataset-type is  |
+|                               an error. Pinned Weka public dataset aliases  |
+|                               keep their registry-defined repo names.       |
+| --dataset-filter              Dataset-specific filter in key=value form.    |
+|                               Repeat for multiple filters. Only supported   |
+|                               by public datasets that declare filter        |
+|                               support. [default: []]                        |
+| --custom-dataset-type         Format specification for custom dataset       |
+|                               provided via --input-file. Determines parsing |
+|                               logic and expected file structure. Options:   |
+|                               single_turn (JSONL with single exchanges),    |
+|                               multi_turn (JSONL with conversation history), |
+|                               mooncake_trace/bailian_trace/baseten_trace    |
+|                               (timestamped trace files), random_pool        |
+|                               (directory of reusable prompts; when using    |
+|                               random_pool, --conversation-num defaults to   |
+|                               100 if not specified; batch sizes > 1 sample  |
+|                               each modality independently from a flat pool  |
+|                               and do not preserve per-entry associations -  |
+|                               use single_turn if paired modalities must     |
+|                               stay together). Requires --input-file.        |
+|                               Mutually exclusive with --public-dataset.     |
+|                               [choices: burst-gpt-trace, bailian-trace,     |
+|                               baseten-trace, mooncake-trace, raw-payload,   |
+|                               inputs-json, dag-jsonl,                       |
+|                               sagemaker-data-capture, multi-turn,           |
+|                               random-pool, single-turn,                     |
+|                               speed-bench-qualitative, speed-bench-coding,  |
+|                               speed-bench-humanities, speed-bench-math,     |
+|                               speed-bench-multilingual, speed-bench-qa,     |
+|                               speed-bench-rag, speed-bench-reasoning,       |
+|                               speed-bench-roleplay, speed-bench-stem,       |
+|                               speed-bench-summarization,                    |
+|                               speed-bench-writing,                          |
+|                               speed-bench-throughput-1-k,                   |
+|                               speed-bench-throughput-2-k,                   |
+|                               speed-bench-throughput-8-k,                   |
+|                               speed-bench-throughput-16-k,                  |
+|                               speed-bench-throughput-32-k,                  |
+|                               speed-bench-throughput-1-k-low-entropy,       |
+|                               speed-bench-throughput-1-k-mixed,             |
+|                               speed-bench-throughput-1-k-high-entropy,      |
+|                               speed-bench-throughput-2-k-low-entropy,       |
+|                               speed-bench-throughput-2-k-mixed,             |
+|                               speed-bench-throughput-2-k-high-entropy,      |
+|                               speed-bench-throughput-8-k-low-entropy,       |
+|                               speed-bench-throughput-8-k-mixed,             |
+|                               speed-bench-throughput-8-k-high-entropy,      |
+|                               speed-bench-throughput-16-k-low-entropy,      |
+|                               speed-bench-throughput-16-k-mixed,            |
+|                               speed-bench-throughput-16-k-high-entropy,     |
+|                               speed-bench-throughput-32-k-low-entropy,      |
+|                               speed-bench-throughput-32-k-mixed,            |
+|                               speed-bench-throughput-32-k-high-entropy,     |
+|                               weka-trace]                                   |
+| --ignore-trace-delays         Strip per-turn timestamps and inter-turn      |
+|                               delays from trace datasets at load time. With |
+|                               this flag, Turn.timestamp and Turn.delay are  |
+|                               emitted as None so concurrency / request-rate |
+|                               timing modes dispatch turns back-to-back      |
+|                               instead of reproducing the recorded user      |
+|                               think-time gaps. No effect under              |
+|                               --fixed-schedule (timestamps drive that mode  |
+|                               before they could be ignored -- combine with  |
+|                               --no-fixed-schedule if you want both          |
+|                               behaviors). [default: False]                  |
+| --use-think-time-only         For weka_trace inputs, emit Turn.delay using  |
+|                               only the recorded per-request think_time      |
+|                               (client-side delay before each request)       |
+|                               instead of the full t_curr - t_prev           |
+|                               inter-request delta. Compresses replay wall   |
+|                               time against zero-latency mocks because the   |
+|                               recorded api_time portion of each gap is      |
+|                               dropped. Mirrors kv-cache-tester's default    |
+|                               --timing-strategy think-only. Falls back to   |
+|                               the full delta for turns whose recorded       |
+|                               think_time is null. Mutually exclusive with   |
+|                               --ignore-trace-delays. No effect on non-weka  |
+|                               trace loaders. [default: False]               |
+| --max-context-length          Maximum peak prompt+output context length     |
+|                               (tokens) per Weka root trace. Weka loaders    |
+|                               (--custom-dataset-type weka_trace or a weka   |
+|                               --public-dataset) drop whole traces whose     |
+|                               recorded peak exceeds this ceiling at load    |
+|                               time (filter-then-cap before                  |
+|                               --num-dataset-entries). Not a DatasetManager  |
+|                               tokenize filter; rejected for non-Weka        |
+|                               formats.                                      |
+| --dataset-sampling-strategy   Strategy for selecting entries from dataset   |
+|                               during benchmarking. sequential: Iterate      |
+|                               through dataset in order, wrapping to start   |
+|                               after end. random: Randomly sample with       |
+|                               replacement (entries may repeat before all    |
+|                               are used). shuffle: Shuffle dataset and       |
+|                               iterate without replacement, re-shuffling     |
+|                               after exhaustion. Default behavior depends on |
+|                               dataset type (e.g., sequential for traces,    |
+|                               shuffle for synthetic). [choices: random,     |
+|                               sequential, shuffle]                          |
+| --allow-dataset-wrap          Allow weka/agentic replay to wrap (reuse      |
+|   --no-allow-dataset-wrap     distinct eligible traces across concurrency   |
+|                               lanes) when concurrency exceeds the loaded    |
+|                               pool. Defaults to False: over-subscription    |
+|                               fails unless wrapping is explicitly enabled   |
+|                               or an active --cache-bust target already      |
+|                               keeps repeated-trace traffic distinct.        |
+|                               [default: False]                              |
+| --random-seed                 Random seed for deterministic data            |
+|                               generation. When set, makes synthetic         |
+|                               prompts, sampling, delays, and other random   |
+|                               operations reproducible across runs.          |
+|                               Essential for A/B testing and debugging. Uses |
+|                               system entropy if not specified. Initialized  |
+|                               globally at config creation.                  |
+| --trace-session-sample-ratio  Fraction of trace sessions to keep for        |
+|                               replay, sampled whole-session to preserve     |
+|                               multi-turn integrity; deterministic when      |
+|                               --random-seed is set. Only supported by the   |
+|                               baseten_trace loader.                         |
+| --config -f                   Path to a YAML configuration file. CLI flags  |
+|                               override values from the config file.         |
++-----------------------------------------------------------------------------+
++- Fixed Schedule ------------------------------------------------------------+
+| --fixed-schedule              Run requests according to timestamps          |
+|                               specified in the input dataset. When enabled, |
+|                               AIPerf replays the exact timing pattern from  |
+|                               the dataset. This mode is automatically       |
+|                               enabled for trace datasets. [default: False]  |
+| --no-fixed-schedule           Suppress the automatic switch to              |
+|                               fixed-schedule mode for trace datasets that   |
+|                               carry per-record timestamps. By default a     |
+|                               trace input (e.g. mooncake_trace) with        |
+|                               timestamps in the first record auto-promotes  |
+|                               the profiling phase to fixed_schedule. Pass   |
+|                               --no-fixed-schedule to keep the user-selected |
+|                               timing mode (e.g. concurrency, request_rate)  |
+|                               and ignore the trace timestamps. [default:    |
+|                               False]                                        |
+| --fixed-schedule-auto-offset  Automatically normalize timestamps in fixed   |
+|                               schedule by shifting all timestamps so the    |
+|                               first timestamp becomes 0. When enabled,      |
+|                               benchmark starts immediately with the timing  |
+|                               pattern preserved. When disabled, timestamps  |
+|                               are used as absolute offsets from benchmark   |
+|                               start. Mutually exclusive with                |
+|                               --fixed-schedule-start-offset. [default:      |
+|                               False]                                        |
+| --fixed-schedule-start-offse  Start offset in milliseconds for fixed        |
+|   t                           schedule replay. Skips all requests before    |
+|                               this timestamp, allowing benchmark to start   |
+|                               from a specific point in the trace. Requests  |
+|                               at exactly the start offset are included.     |
+|                               Useful for analyzing specific time windows.   |
+|                               Mutually exclusive with                       |
+|                               --fixed-schedule-auto-offset. Must be ��       |
+|                               --fixed-schedule-end-offset if both           |
+|                               specified.                                    |
+| --fixed-schedule-end-offset   End offset in milliseconds for fixed schedule |
+|                               replay. Stops issuing requests after this     |
+|                               timestamp, allowing benchmark of specific     |
+|                               trace subsets. Requests at exactly the end    |
+|                               offset are included. Defaults to last         |
+|                               timestamp in dataset. Must be ��               |
+|                               --fixed-schedule-start-offset if both         |
+|                               specified.                                    |
++-----------------------------------------------------------------------------+
++- Goodput -------------------------------------------------------------------+
+| --goodput  Specify service level objectives (SLOs) for goodput as           |
+|            space-separated 'KEY:VALUE' pairs, where KEY is a metric tag and |
+|            VALUE is a number in the metric's display unit (falls back to    |
+|            its base unit if no display unit is defined). Examples:          |
+|            'request_latency:250' (ms), 'inter_token_latency:10' (ms),       |
+|            output_token_throughput_per_user:600 (tokens/s). Only metrics    |
+|            applicable to the current endpoint/config are considered. For    |
+|            more context on the definition of goodput, refer to DistServe    |
+|            paper: https://arxiv.org/pdf/2401.09670 and the blog:            |
+|            https://hao-ai-lab.github.io/blogs/distserve                     |
++-----------------------------------------------------------------------------+
++- Output --------------------------------------------------------------------+
+| --output-artifact-dir       Output directory for all benchmark artifacts    |
+|   --artifact-dir            including metrics (.csv, .json, .jsonl), raw    |
+|                             data (_raw.jsonl), GPU telemetry                |
+|                             (_gpu_telemetry.jsonl), and time-sliced metrics |
+|                             (_timeslices.csv/json). Directory created if it |
+|                             doesn't exist. All output file paths are        |
+|                             constructed relative to this directory.         |
+|                             [default: artifacts]                            |
+| --profile-export-prefix     Base filename for ALL exported files. With      |
+|   --profile-export-file     prefix='foo' every output becomes foo.csv,      |
+|                             foo.json, foo_timeslices.{csv,json}, foo.jsonl, |
+|                             foo_raw.jsonl, foo_gpu_telemetry.jsonl, and     |
+|                             foo_server_metrics.{jsonl,json,csv,parquet}.    |
+|                             When unset (the default), historical per-file   |
+|                             names are used:                                 |
+|                             profile_export_aiperf.{csv,json} for the        |
+|                             summary, profile_export.jsonl and               |
+|                             profile_export_raw.jsonl for records,           |
+|                             gpu_telemetry_export.jsonl, and                 |
+|                             server_metrics_export.*. Known suffixes (e.g.   |
+|                             _raw.jsonl, _timeslices.csv,                    |
+|                             _server_metrics.parquet) are stripped from the  |
+|                             supplied value.                                 |
+| --export-level              Controls which output files are generated.      |
+|   --profile-export-level    summary: Only aggregate metrics files (.csv,    |
+|                             .json). records: Includes per-request metrics   |
+|                             (.jsonl). raw: Includes raw request/response    |
+|                             data (_raw.jsonl). [choices: summary, records,  |
+|                             raw] [default: records]                         |
+| --slice-duration            Duration in seconds for time-sliced metric      |
+|                             analysis. When set, AIPerf divides the          |
+|                             benchmark timeline into fixed-length windows    |
+|                             and computes metrics separately for each        |
+|                             window. This enables analysis of performance    |
+|                             trends and variations over time (e.g., warmup   |
+|                             effects, degradation under sustained load).     |
+| --auto-plot --no-auto-plot  Auto-invoke aiperf plot against the artifact    |
+|                             directory after the benchmark completes. None = |
+|                             defer to recipe default (False if no recipe).   |
+|                             True/False = explicit override. Failures are    |
+|                             logged but do not fail the command unless       |
+|                             --plot-required is set.                         |
+| --plot-required             Treat auto-plot failures as fatal: re-raise so  |
+|                             aiperf profile exits non-zero. Only meaningful  |
+|                             when auto-plot is on. Default False = warn and  |
+|                             continue. [default: False]                      |
+| --export-outputs-json       Export generated response text to outputs.json  |
+|                             after the run. When enabled, the raw            |
+|                             generated-text payload for each request is      |
+|                             written to an outputs.json file in the artifact |
+|                             directory. [default: False]                     |
+| --otel-url                  OTLP/HTTP metrics endpoint URL.                 |
+| --stream                    Select which AIPerf telemetry domains to stream |
+|                             over OTel. Valid values: 'metrics', 'timing',   |
+|                             or 'default'. 'default' streams both metrics    |
+|                             and timing. Examples: --stream metrics |        |
+|                             --stream timing | --stream metrics timing       |
+| --otel-resource-attributes  Custom OTel resource attributes as key=value    |
+|                             pairs. Merged into the default resource         |
+|                             attributes on every exported metric.            |
+| --gen-ai-provider           GenAI semantic convention provider override.    |
+| --mlflow-tracking-uri       MLflow tracking URI.                            |
+| --mlflow-experiment         MLflow experiment name.                         |
+| --mlflow-run-name           MLflow run name.                                |
+| --mlflow-tag                Additional MLflow run tags to attach on upload. |
+|                             Specify as key:value pairs (e.g., --mlflow-tag  |
+|                             team:perf) or as JSON string.                   |
+| --mlflow-parent-run-id      Optional MLflow parent run ID.                  |
+| --mlflow-artifact-glob      Artifact glob overrides for MLflow upload. Can  |
+|                             be specified multiple times or as a             |
+|                             comma-separated list.                           |
+| --wandb-project             Weights & Biases project name. Setting this     |
+|                             enables wandb export.                           |
+| --wandb-entity              Weights & Biases entity (team or user).         |
+|                             Defaults to the API key's default entity.       |
+| --wandb-run-name            Weights & Biases run name.                      |
+| --wandb-tag                 Additional Weights & Biases run tags to attach  |
+|                             on upload. Can be specified multiple times or   |
+|                             as a comma-separated list.                      |
++-----------------------------------------------------------------------------+
++- HTTP Trace ----------------------------------------------------------------+
+| --export-http-trace  Include HTTP trace data (timestamps, chunks, headers,  |
+|                      socket info) in profile_export.jsonl. Computed metrics |
+|                      (http_req_duration, http_req_waiting, etc.) are always |
+|                      included regardless of this setting. See the HTTP      |
+|                      Trace Metrics guide for details on trace data fields.  |
+|                      [default: False]                                       |
+| --show-trace-timing  Display HTTP trace timing metrics in the console at    |
+|                      the end of the benchmark. Shows detailed timing        |
+|                      breakdown: blocked, DNS, connecting, sending, waiting  |
+|                      (TTFB), receiving, and total duration following k6     |
+|                      naming conventions. [default: False]                   |
++-----------------------------------------------------------------------------+
++- Tokenizer -----------------------------------------------------------------+
+| --tokenizer                   HuggingFace tokenizer identifier, local path, |
+|                               or builtin for token counting in prompts and  |
+|                               responses. Accepts model names (e.g.,         |
+|                               meta-llama/Llama-2-7b-hf), filesystem paths   |
+|                               to tokenizer files, or builtin for a          |
+|                               zero-network-access tokenizer backed by       |
+|                               tiktoken (o200k_base encoding). If not        |
+|                               specified, defaults to the value of           |
+|                               --model-names. If --tokenizer is not set and  |
+|                               the model name looks like an obvious          |
+|                               placeholder (e.g. mock-model, test-model,     |
+|                               fake-model), AIPerf substitutes builtin       |
+|                               automatically and emits a warning. Essential  |
+|                               for accurate token-based metrics              |
+|                               (input/output token counts, token             |
+|                               throughput).                                  |
+| --tokenizer-revision          Specific tokenizer version to load from       |
+|                               HuggingFace Hub. Can be a branch name (e.g.,  |
+|                               main), tag name (e.g., v1.0), or full commit  |
+|                               hash. Ensures reproducible tokenization       |
+|                               across runs by pinning to a specific version. |
+|                               Defaults to main branch if not specified.     |
+|                               [default: main]                               |
+| --tokenizer-trust-remote-cod  Allow execution of custom Python code from    |
+|   e                           HuggingFace Hub tokenizer repositories.       |
+|                               Required for tokenizers with custom           |
+|                               implementations not in the standard           |
+|                               transformers library. Security Warning: Only  |
+|                               enable for trusted repositories, as this      |
+|                               executes arbitrary code. Unnecessary for      |
+|                               standard tokenizers. [default: False]         |
+| --apply-chat-template         Apply the HuggingFace tokenizer's chat        |
+|                               template when counting input tokens. When     |
+|                               enabled: synthetic ISL is compensated for     |
+|                               chat-template wrapping (BOS, role headers,    |
+|                               EOT, generation-prompt suffix) and the record |
+|                               processor reports ISL using                   |
+|                               apply_chat_template(tokenize=True,            |
+|                               add_generation_prompt=True) for chat-shape    |
+|                               payloads. When disabled (default), both paths |
+|                               use bare-text encoding, so reported ISL       |
+|                               matches the prompt content the user asked for |
+|                               and ignores template overhead. Requires an HF |
+|                               tokenizer with a chat template configured;    |
+|                               no-ops on tiktoken / un-templated models.     |
+|                               [default: False]                              |
++-----------------------------------------------------------------------------+
++- Load Generator ------------------------------------------------------------+
+| --benchmark-duration          Maximum benchmark runtime in seconds. When    |
+|                               set, AIPerf stops issuing new requests after  |
+|                               this duration, Responses received within      |
+|                               --benchmark-grace-period after duration ends  |
+|                               are included in metrics. Pass a               |
+|                               comma-separated list (e.g.                    |
+|                               --benchmark-duration 30,60,120) to sweep over |
+|                               multiple durations; the converter promotes    |
+|                               the list to a sweep on                        |
+|                               phases.profiling.duration before AIPerfConfig |
+|                               validation.                                   |
+| --benchmark-grace-period      The grace period in seconds to wait for       |
+|                               responses after benchmark duration ends. Only |
+|                               applies when --benchmark-duration is set.     |
+|                               Responses received within this period are     |
+|                               included in metrics. Use 'inf' to wait        |
+|                               indefinitely for all responses. [default:     |
+|                               30.0]                                         |
+| --concurrency                 Number of concurrent requests to maintain.    |
+|                               AIPerf issues a new request immediately when  |
+|                               one completes, maintaining this level of      |
+|                               in-flight requests. Can be combined with      |
+|                               --request-rate to control the request rate.   |
+|                               Pass a comma-separated list (e.g.             |
+|                               --concurrency 10,20,30) to sweep over         |
+|                               multiple concurrencies; the converter         |
+|                               promotes the list to a sweep before           |
+|                               AIPerfConfig validation.                      |
+| --prefill-concurrency         Max concurrent requests waiting for first     |
+|                               token (prefill phase). Limits how many        |
+|                               requests can be in the                        |
+|                               prefill/prompt-processing stage               |
+|                               simultaneously. Pass a comma-separated list   |
+|                               (e.g. --prefill-concurrency 1,2,4) to sweep   |
+|                               over multiple values; the converter promotes  |
+|                               the list to a sweep before AIPerfConfig       |
+|                               validation.                                   |
+| --request-rate                Target request rate in requests per second.   |
+|                               AIPerf generates request timing according to  |
+|                               --request-rate-mode to achieve this average   |
+|                               rate. Can be combined with --concurrency to   |
+|                               control the number of concurrent requests.    |
+|                               Supports fractional rates (e.g., 0.5 = 1      |
+|                               request every 2 seconds). Pass a              |
+|                               comma-separated list (e.g. --request-rate     |
+|                               10,20,50) to sweep over multiple rates; the   |
+|                               converter promotes the list to a sweep before |
+|                               AIPerfConfig validation.                      |
+| --arrival-pattern             Sets the arrival pattern for the load         |
+|   --request-rate-mode         generated by AIPerf. Valid values: constant,  |
+|                               poisson, gamma. constant: Generate requests   |
+|                               at a fixed rate. poisson: Generate requests   |
+|                               using a poisson distribution. gamma: Generate |
+|                               requests using a gamma distribution with      |
+|                               tunable smoothness. [choices:                 |
+|                               concurrency-burst, constant, gamma, poisson]  |
+|                               [default: poisson]                            |
+| --arrival-smoothness          Smoothness parameter for gamma distribution   |
+|   --vllm-burstiness           arrivals (--arrival-pattern gamma). Controls  |
+|                               the shape of the arrival pattern:             |
+|                                                                             |
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Scripts\agentx.exe\__main__.py", line 10, in <module>
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\agentx_cli.py", line 54, in main
+    app(tokens)
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\cyclopts\core.py", line 1978, in __call__
+    result = _run_maybe_async_command(command, bound, resolved_backend)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\cyclopts\_run.py", line 50, in _run_maybe_async_command
+    return command(*bound.args, **bound.kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\cyclopts\core.py", line 2189, in help_print
+    formatter(console, console.options, panel)
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\cyclopts\help\formatters\default.py", line 137, in __call__
+    console.print(rendered)
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\console.py", line 1697, in print
+    with self:
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\console.py", line 870, in __exit__
+    self._exit_buffer()
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\console.py", line 826, in _exit_buffer
+    self._check_buffer()
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\console.py", line 2038, in _check_buffer
+    self._write_buffer()
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\console.py", line 2074, in _write_buffer
+    legacy_windows_render(buffer, LegacyWindowsTerm(self.file))
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\_windows_renderer.py", line 17, in legacy_windows_render
+    term.write_styled(text, style)
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\_win32_console.py", line 441, in write_styled
+    self.write_text(text)
+  File "D:\Vibe_Workspace\GPT-Zero\.venv-agentx\Lib\site-packages\rich\_win32_console.py", line 402, in write_text
+    self.write(text)
+UnicodeEncodeError: 'gbk' codec can't encode character '\u2022' in position 1: illegal multibyte sequence
+|                               

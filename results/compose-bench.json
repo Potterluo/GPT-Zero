@@ -1,0 +1,502 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "gptzero-bench",
+    "version": "0.1.0"
+  },
+  "name": "compose-bench",
+  "generated_at": "2026-10-28T09:06:53+00:00",
+  "config": {
+    "url": "http://mock:8090",
+    "model": "gpt-3.5-turbo",
+    "profiles": [
+      "coding"
+    ],
+    "profile": "coding",
+    "concurrency": [
+      4
+    ],
+    "duration_s": 8.0,
+    "warmup": 3,
+    "seed": 42,
+    "timeout_s": 300.0,
+    "fail_fast": false,
+    "max_tokens": null,
+    "notes": [],
+    "env": {
+      "python": "3.11.18",
+      "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+      "bench_python": "/usr/local/bin/python"
+    }
+  },
+  "server": {
+    "url": "http://mock:8090",
+    "config": {
+      "host": "0.0.0.0",
+      "port": 8090,
+      "models": [
+        "gpt-3.5-turbo",
+        "qwen3-32b",
+        "deepseek-v3",
+        "claude-3-opus",
+        "deepseek-r1"
+      ],
+      "model_dir": "/mnt/model",
+      "ttft_ms": 180.0,
+      "tpot_ms": 8.0,
+      "jitter": 0.12,
+      "prefill_tps": 0.0,
+      "decode_tps": 0.0,
+      "max_concurrency": 64,
+      "block_size": 64,
+      "cache_blocks": 8192,
+      "default_max_tokens": 256,
+      "max_tokens_cap": 65536,
+      "tool_call_ratio": 0.6,
+      "tool_payload_tokens": 120,
+      "seed": 42,
+      "tokenizer": "heuristic",
+      "log_limit": 1000,
+      "log_file": "/data/requests.jsonl",
+      "stats_sample_limit": 20000,
+      "workers": 1,
+      "version": "3.0.0",
+      "tokenizer_warnings": [
+        "/app/deepseek_v3_tokenizer: ModuleNotFoundError: No module named 'transformers'"
+      ]
+    },
+    "tokenizer": "heuristic",
+    "config_verified": true
+  },
+  "sanity": {
+    "ok": true,
+    "warnings": []
+  },
+  "points": [
+    {
+      "concurrency": 4,
+      "profile": "coding",
+      "requested_duration_s": 8.0,
+      "wall_s": 10.4054,
+      "warmup_requests": 3,
+      "warmup_probe": {
+        "requests": 3,
+        "ok": 3,
+        "ttft_ms_p50": 216.0383,
+        "tpot_ms_p50": 10.4559
+      },
+      "started_at": "2026-10-28T09:06:41+00:00",
+      "finished_at": "2026-10-28T09:06:53+00:00",
+      "requests": {
+        "total": 25,
+        "success": 25,
+        "failed": 0,
+        "failure_rate": 0.0,
+        "sub_requests": 0,
+        "tool_call_requests": 21
+      },
+      "tokens": {
+        "prompt": 167549,
+        "completion": 4800,
+        "tool_calls": 21
+      },
+      "rates": {
+        "rps": 2.4025873566479916,
+        "success_rps": 2.4025873566479916,
+        "input_tokens_per_s": 16102.044360760576,
+        "output_tokens_per_s": 461.29677247641445,
+        "total_tokens_per_s": 16563.34113323699,
+        "server": {
+          "prompt_tokens_per_s": 16102.044360760576,
+          "generation_tokens_per_s": 461.29677247641445
+        }
+      },
+      "summary": {
+        "ttft_ms": {
+          "count": 25,
+          "p50": 219.9524,
+          "p90": 245.92902,
+          "p95": 248.93738,
+          "p99": 259.027196,
+          "mean": 221.18139200000002,
+          "max": 261.9869,
+          "min": 183.1308
+        },
+        "tpot_ms": {
+          "count": 25,
+          "p50": 7.0259,
+          "p90": 8.68362,
+          "p95": 9.08882,
+          "p99": 9.425836,
+          "mean": 6.498076,
+          "max": 9.5035,
+          "min": 1.9019
+        },
+        "e2e_ms": {
+          "count": 25,
+          "p50": 1538.9602,
+          "p90": 1884.2904400000002,
+          "p95": 1940.8381600000002,
+          "p99": 2032.7233520000004,
+          "mean": 1462.3158080000003,
+          "max": 2057.8202,
+          "min": 577.7212
+        },
+        "itl_ms": {
+          "count": 1846,
+          "p50": 16.63465,
+          "p90": 25.985349999999997,
+          "p95": 27.8227,
+          "p99": 28.963250000000002,
+          "mean": 16.776093174431193,
+          "max": 31.9905,
+          "min": 5.7587
+        }
+      },
+      "per_profile": {
+        "coding": {
+          "requests": {
+            "total": 25,
+            "success": 25,
+            "failed": 0
+          },
+          "tokens": {
+            "prompt": 167549,
+            "completion": 4800,
+            "tool_calls": 21
+          },
+          "summary": {
+            "ttft_ms": {
+              "count": 25,
+              "p50": 219.9524,
+              "p90": 245.92902,
+              "p95": 248.93738,
+              "p99": 259.027196,
+              "mean": 221.18139200000002,
+              "max": 261.9869,
+              "min": 183.1308
+            },
+            "tpot_ms": {
+              "count": 25,
+              "p50": 7.0259,
+              "p90": 8.68362,
+              "p95": 9.08882,
+              "p99": 9.425836,
+              "mean": 6.498076,
+              "max": 9.5035,
+              "min": 1.9019
+            },
+            "e2e_ms": {
+              "count": 25,
+              "p50": 1538.9602,
+              "p90": 1884.2904400000002,
+              "p95": 1940.8381600000002,
+              "p99": 2032.7233520000004,
+              "mean": 1462.3158080000003,
+              "max": 2057.8202,
+              "min": 577.7212
+            },
+            "itl_ms": {
+              "count": 1846,
+              "p50": 16.63465,
+              "p90": 25.985349999999997,
+              "p95": 27.8227,
+              "p99": 28.963250000000002,
+              "mean": 16.776093174431193,
+              "max": 31.9905,
+              "min": 5.7587
+            }
+          },
+          "rps": 2.4025873566479916,
+          "input_tokens_per_s": 16102.044360760576,
+          "output_tokens_per_s": 461.29677247641445,
+          "samples": {
+            "ttft_ms": [
+              183.1308,
+              188.3083,
+              196.0135,
+              199.8891,
+              204.2035,
+              206.3296,
+              209.5531,
+              212.0386,
+              212.204,
+              214.4502,
+              215.2678,
+              217.3617,
+              219.9524,
+              224.8169,
+              226.1246,
+              227.0728,
+              227.9773,
+              232.5232,
+              232.9194,
+              233.3158,
+              242.6518,
+              245.721,
+              246.0677,
+              249.6548,
+              261.9869
+            ],
+            "e2e_ms": [
+              577.7212,
+              631.5422,
+              635.9299,
+              742.9387,
+              803.3833,
+              1289.7534,
+              1324.2522,
+              1472.1073,
+              1485.262,
+              1498.7146,
+              1526.5017,
+              1530.2639,
+              1538.9602,
+              1613.6111,
+              1641.1728,
+              1706.2932,
+              1724.9105,
+              1740.5503,
+              1755.4318,
+              1764.4191,
+              1777.9749,
+              1873.9399,
+              1891.1908,
+              1953.25,
+              2057.8202
+            ]
+          }
+        }
+      },
+      "cache": {
+        "queries_tokens": 167549.0,
+        "hit_tokens": 118400.0,
+        "hit_rate": 0.7066589475317668,
+        "source": "metrics",
+        "evictions": 0.0
+      },
+      "samples": {
+        "ttft_ms": [
+          183.1308,
+          188.3083,
+          196.0135,
+          199.8891,
+          204.2035,
+          206.3296,
+          209.5531,
+          212.0386,
+          212.204,
+          214.4502,
+          215.2678,
+          217.3617,
+          219.9524,
+          224.8169,
+          226.1246,
+          227.0728,
+          227.9773,
+          232.5232,
+          232.9194,
+          233.3158,
+          242.6518,
+          245.721,
+          246.0677,
+          249.6548,
+          261.9869
+        ],
+        "e2e_ms": [
+          577.7212,
+          631.5422,
+          635.9299,
+          742.9387,
+          803.3833,
+          1289.7534,
+          1324.2522,
+          1472.1073,
+          1485.262,
+          1498.7146,
+          1526.5017,
+          1530.2639,
+          1538.9602,
+          1613.6111,
+          1641.1728,
+          1706.2932,
+          1724.9105,
+          1740.5503,
+          1755.4318,
+          1764.4191,
+          1777.9749,
+          1873.9399,
+          1891.1908,
+          1953.25,
+          2057.8202
+        ]
+      },
+      "errors": [],
+      "sanity": {
+        "ok": true,
+        "warnings": [],
+        "configured_tpot_ms": 8.0,
+        "measured_tpot_p50_ms": 7.0259,
+        "probe_tpot_ms": 10.4559,
+        "sample_count": 25,
+        "success_count": 25
+      },
+      "config_unverified": false,
+      "server_config": {
+        "ttft_ms": 180.0,
+        "tpot_ms": 8.0,
+        "max_concurrency": 64,
+        "block_size": 64,
+        "cache_blocks": 8192
+      },
+      "server_config_full": {
+        "host": "0.0.0.0",
+        "port": 8090,
+        "models": [
+          "gpt-3.5-turbo",
+          "qwen3-32b",
+          "deepseek-v3",
+          "claude-3-opus",
+          "deepseek-r1"
+        ],
+        "model_dir": "/mnt/model",
+        "ttft_ms": 180.0,
+        "tpot_ms": 8.0,
+        "jitter": 0.12,
+        "prefill_tps": 0.0,
+        "decode_tps": 0.0,
+        "max_concurrency": 64,
+        "block_size": 64,
+        "cache_blocks": 8192,
+        "default_max_tokens": 256,
+        "max_tokens_cap": 65536,
+        "tool_call_ratio": 0.6,
+        "tool_payload_tokens": 120,
+        "seed": 42,
+        "tokenizer": "heuristic",
+        "log_limit": 1000,
+        "log_file": "/data/requests.jsonl",
+        "stats_sample_limit": 20000,
+        "workers": 1,
+        "version": "3.0.0",
+        "tokenizer_warnings": [
+          "/app/deepseek_v3_tokenizer: ModuleNotFoundError: No module named 'transformers'"
+        ]
+      },
+      "server_stats": {
+        "uptime_s": 24.542,
+        "total_requests": 29,
+        "completed_requests": 29,
+        "failed_requests": 0,
+        "active_requests": 0,
+        "waiting_requests": 0,
+        "max_active_requests": 0,
+        "prompt_tokens": 167648,
+        "completion_tokens": 4908,
+        "total_tokens": 172556,
+        "tool_calls": 21,
+        "rps": 1.182,
+        "prompt_tokens_per_s": 6831.0,
+        "completion_tokens_per_s": 200.0,
+        "cache_hit_tokens": 118400,
+        "cache_query_tokens": 167648,
+        "cache_hit_rate": 0.7062,
+        "ttft_ms": {
+          "p50": 203.741,
+          "p90": 231.428,
+          "p99": 245.313,
+          "mean": 200.922,
+          "max": 245.948
+        },
+        "tpot_ms": {
+          "p50": 7.413,
+          "p90": 9.381,
+          "p99": 10.724,
+          "mean": 6.975,
+          "max": 10.729
+        },
+        "itl_ms": {
+          "p50": 7.413,
+          "p90": 9.381,
+          "p99": 10.724,
+          "mean": 6.975,
+          "max": 10.729
+        },
+        "e2e_ms": {
+          "p50": 1522.317,
+          "p90": 1873.906,
+          "p99": 2024.937,
+          "mean": 1318.622,
+          "max": 2054.194
+        },
+        "prompt_tokens_hist": {
+          "p50": 5314.0,
+          "p90": 11622.6,
+          "p99": 15832.48,
+          "mean": 5780.966,
+          "max": 16010.0
+        },
+        "completion_tokens_hist": {
+          "p50": 192.0,
+          "p90": 192.0,
+          "p99": 192.0,
+          "mean": 169.241,
+          "max": 192.0
+        },
+        "finish_reasons": {
+          "length": 8,
+          "tool_calls": 21
+        },
+        "models": {
+          "gpt-3.5-turbo": {
+            "requests": 29.0,
+            "prompt_tokens": 167648.0,
+            "completion_tokens": 4908.0
+          }
+        },
+        "tool_calls_by_name": {
+          "call_1": 21
+        },
+        "cache": {
+          "blocks_cached": 606,
+          "blocks_capacity": 8192,
+          "evictions": 0
+        },
+        "tokenizer": "heuristic",
+        "config": {
+          "ttft_ms": 180.0,
+          "tpot_ms": 8.0,
+          "max_concurrency": 64,
+          "block_size": 64,
+          "cache_blocks": 8192
+        }
+      },
+      "server_stats_delta": {
+        "prompt_tokens": 167549,
+        "completion_tokens": 4800,
+        "total_tokens": 172349,
+        "completed_requests": 25,
+        "tool_calls": 21,
+        "cache_hit_tokens": 118400,
+        "cache_query_tokens": 167549
+      },
+      "metrics_delta": {
+        "vllm:prompt_tokens_total": 167549.0,
+        "vllm:generation_tokens_total": 4800.0,
+        "vllm:prefix_cache_queries_total": 167549.0,
+        "vllm:prefix_cache_hits_total": 118400.0,
+        "vllm:prefix_cache_evictions_total": 0.0,
+        "vllm:request_success_total": 25.0,
+        "vllm:time_to_first_token_seconds_count": 25.0,
+        "vllm:time_to_first_token_seconds_sum": 5.061943,
+        "vllm:e2e_request_latency_seconds_count": 25.0,
+        "gptzero:tool_calls_total": null,
+        "gptzero:cache_hit_tokens_total": 118400.0
+      },
+      "records_kept": 25,
+      "bench_version": "0.1.0"
+    }
+  ],
+  "charts": [],
+  "notes": []
+}

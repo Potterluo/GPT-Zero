@@ -1,0 +1,4 @@
+profile,concurrency,requests,success,failed,failure_rate,rps,ttft_p50_ms,ttft_p90_ms,ttft_p95_ms,ttft_p99_ms,tpot_p50_ms,itl_p50_ms,e2e_p50_ms,e2e_p90_ms,e2e_p99_ms,input_tokens_per_s,output_tokens_per_s,prompt_tokens,completion_tokens,cache_hit_rate,cache_queries_tokens,server_ttft_p90_ms,server_e2e_p99_ms
+chat,8,44,44,0,0.0,4.87,142.137,174.032,177.704,188.333,8.594,16.788,1513.48,1747.326,1917.621,2748.24,779.2,24830,7040,0.6908,24830.0,162.777,2115.748
+coding,8,47,47,0,0.0,4.746,144.327,162.405,174.41,180.878,7.528,17.767,1591.53,1858.561,2150.333,19179.25,911.14,189952,9024,0.9757,189952.0,160.808,2124.438
+agentic,8,58,58,0,0.0,6.027,156.588,183.043,205.746,222.359,7.808,13.86,1377.974,1590.442,1718.549,23830.96,914.47,229326,8800,0.7072,229326.0,161.109,2114.214

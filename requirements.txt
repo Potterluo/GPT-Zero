@@ -1,2 +1,10 @@
-fastapi==0.109.0
-pydantic==2.5.3
+# Core runtime (mock server). The bench/agentx harnesses additionally need
+# httpx + matplotlib + numpy; see pyproject.toml extras.
+fastapi>=0.109
+uvicorn>=0.20
+pydantic>=2.5
+
+# Optional: exact token counting from a local tokenizer.json (offline).
+# The repo ships deepseek_v3_tokenizer/; without this dependency the server
+# falls back to a deterministic heuristic codec.
+tokenizers>=0.15

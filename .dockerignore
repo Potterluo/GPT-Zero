@@ -1,0 +1,45 @@
+# GPT-Zero v3 — 构建上下文排除清单
+# 目标：镜像里只有「跑服务所需」，不含本机环境、压测产物、离线 tar 包。
+
+# --- 版本控制 / 编辑器 ---
+.git
+.gitignore
+.gitattributes
+.github
+.chorus
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# --- Python 本地环境（绝不能进镜像）---
+# 注意用通配：仓库里可能有 .venv / .venv-agentx / .venv-bench 等多套环境（并行开发时）
+.venv*
+venv*
+env
+__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+.eggs
+build
+dist
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# --- 运行/压测产物（挂卷传入，不要烤进镜像）---
+results
+data
+logs
+dist/*.tar
+*.tar
+*.tar.gz
+*.log
+*.jsonl
+
+# --- 文档与杂项（保留 docs/、scripts/、docker/、deepseek_v3_tokenizer/）---
+assets/*.psd
+*.md.bak

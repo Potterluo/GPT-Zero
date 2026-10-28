@@ -93,7 +93,9 @@ try {
     $created = (docker image inspect $Tag --format '{{.Created}}').Trim()
     Write-Ok ("镜像        : $Tag")
     Write-Ok ("镜像 ID     : {0}" -f $imgId.Substring(0, [Math]::Min(19, $imgId.Length)))
-    Write-Ok ("镜像大小    : {0}" -f (Format-Size $size))
+    Write-Ok ("镜像大小    : {0}（inspect .Size，随引擎口径可能是分层压缩体积）" -f (Format-Size $size))
+    $listed = (docker images $Tag --format '{{.Size}}' 2>$null | Out-String).Trim()
+    if ($listed) { Write-Ok ("docker images: $listed（解压后体积，人眼更直观）") }
     Write-Ok ("构建时间    : $created")
 
     Write-Step "docker save → $Out"

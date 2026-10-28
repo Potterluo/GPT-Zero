@@ -122,6 +122,9 @@ results/
   sweep_mock_b.{json,md,csv}   charts/sweep_mock_b/*.{png,svg}
   sweep_profiles.{json,md,csv} charts/sweep_profiles/*.{png,svg}
   agentx/replay.{json,md,csv}  agentx/charts/*.{png,svg}
+  charts/dashboard.png         管理面板实拍（压测运行中）
   compose-bench.json           容器内 compose 压测（ops 交付验证）
   agentx_docker/replay.*       容器内 agentx 回放（ops 交付验证）
 ```
+
+![管理面板](charts/dashboard.png)

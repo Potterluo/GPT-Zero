@@ -87,7 +87,7 @@ bash scripts/offline_image.sh -n -o /tmp/gptzero-v3.tar
 | 模式 | 构建参数 | 镜像体积（实测） | `prompt_tokens` | 适用 |
 |---|---|---|---|---|
 | heuristic（默认） | `WITH_TRANSFORMERS=0` | **388 MB**（`docker images`；分层压缩 88 MiB；`/app` 13 MB） | 按「CJK 单字 + 拉丁 4 字符」估算，仅用于模拟 | 只关心吞吐/延迟曲线、快速分发 |
-| hf（精确） | `WITH_TRANSFORMERS=1` | 388 MB + 约 160~200 MB ≈ **550~600 MB**（依赖层额外 `tokenizers`/`huggingface_hub`/`safetensors`） | 与真实 DeepSeek V3 tokenizer 一致 | 需要 `use_server_token_count` 对齐真实客户端计数 |
+| hf（精确） | `WITH_TRANSFORMERS=1` | **549 MB**（388 + 161 MB 的 transformers/tokenizers/huggingface_hub/safetensors） | 与真实 DeepSeek V3 tokenizer 一致（`tokenizers:deepseek_v3_tokenizer`） | 需要 `use_server_token_count` 对齐真实客户端计数 |
 
 选择建议：
 
@@ -313,7 +313,7 @@ docker history gptzero:v3 --no-trunc | head -20
 ```bash
 $ docker build -t gptzero:v3 .
 # 冷构建（首次，需要从清华源下载 numpy/matplotlib/pillow 等 wheel）
-#8 [builder 4/4] RUN ... pip install --prefix=/install -r /workspace/requirements-runtime.txt
+#8 [builder 4/4] RUN ... pip install --prefix=/install -r /build/requirements-runtime.txt
 #8 167.4 Successfully installed annotated-types-0.8.0 ... fastapi-0.115.6 ... matplotlib-3.9.3 \
 #    numpy-2.1.3 ... pydantic-2.10.4 ... uvicorn-0.32.1
 #8 DONE 171.5s
@@ -341,13 +341,43 @@ $ docker run --rm --entrypoint du gptzero:v3 -sh /app
 13M     /app                    # 源码 + dashboard.html + deepseek_v3_tokenizer(7.5M)
 ```
 
-> ⚠️ 踩坑记录：第一版镜像一度是 **1.22 GB**，原因是并行开发时仓库里出现了 `.venv-agentx/`（569 MB），
-> 而 `.dockerignore` 当时只写了 `.venv`。已改成通配 `.venv*` / `venv*`，重建后回到 **388 MB**。
-> 团队里谁再新建 `.venv-xxx` 都不会污染镜像。
+> ⚠️ 踩坑记录：第一版镜像一度是 **1.22 GB**（Lead 复验时看到的就是这一版），原因是并行开发时仓库里出现了
+> `.venv-agentx/`（569 MB），而 `.dockerignore` 当时只写了 `.venv`。已改成通配 `.venv*` / `venv*`，
+> 重建后回到 **388 MB**（同一份代码、同一套 8/8 smoke）。现在任何 `.venv-xxx` 都不会再进镜像。
 
-**镜像大小（精确计数版，`WITH_TRANSFORMERS=1`）**：见 §3.1 的对照表 —— 需额外安装 transformers
-及其 CPU 依赖（约 +160~200 MB，实测依赖层会多下载 `tokenizers`/`huggingface_hub`/`safetensors`）。
-默认**不装**它，交付以 388 MB 的精简版为准。
+**镜像大小（精确计数版，`WITH_TRANSFORMERS=1`，实测）**
+
+```bash
+$ docker build -t gptzero:v3-hf --build-arg WITH_TRANSFORMERS=1 .   # 221s（含 transformers+tokenizers 下载）
+$ docker images gptzero --format '{{.Repository}}:{{.Tag}} | {{.Size}}'
+gptzero:v3-hf | 549MB      # 388MB 精简版 + 161MB（transformers/tokenizers/huggingface_hub/safetensors）
+gptzero:v3    | 388MB
+
+$ docker run --rm --network none --entrypoint python3 gptzero:v3-hf -c \
+    "from gptzero.tokenizer import CountingTokenizer; t=CountingTokenizer('auto'); \
+     print(t.name); print(t.count('hello world 你好世界'))"
+tokenizers:deepseek_v3_tokenizer      # 真实加载仓库内 tokenizer.json（纯离线，HF_HUB_OFFLINE=1 生效）
+5
+```
+
+两者接口/指标/smoke 完全一致，只差 tokens 计数精确度与 161 MB 体积。
+
+**交付产物（`dist/`，已 gitignore）**
+
+```bash
+$ scripts/offline_image.ps1 -NoBuild
+    镜像        : gptzero:v3
+    镜像 ID     : sha256:e6ee1064ae2f
+    镜像大小    : 370.3 MB          # inspect .Size；不同引擎版本口径不同（29.0.1 报 92 MB 压缩层）
+    docker images: 388MB            # 解压后体积
+    tar 路径    : D:\Vibe_Workspace\GPT-Zero\dist\gptzero-v3.tar
+    tar 大小    : 88.1 MB           # docker save 产物，拷贝分发就用它
+    sha256      : 3f3a333de7ae6d3bb709480856e3cc6045b6934e32e0120f7d06b7906ab39fec
+    校验文件    : dist\gptzero-v3.tar.sha256
+```
+
+> ⚠️ 踩坑记录（续）：该 1.22 GB 版本与现在的 388 MB 版本功能一致，8/8 smoke 均通过，
+> 差别仅在于构建上下文里多打了一个 569 MB 的 `.venv-agentx/`。
 
 ### 10.2 纯离线自检：`docker run --rm --network none gptzero:v3 smoke`
 
@@ -438,35 +468,46 @@ $ ls -l results/compose-bench.json     # 宿主机可见（挂卷 ./results:/app
 ```bash
 $ docker compose --profile agentx run --rm agentx \
     replay --url http://mock:8090 --concurrency 2 --duration 5 \
-    --out results/agentx-docker.json --no-charts
+    --out results/agentx_docker --no-charts
 [replay] 8 条 trace × 并发 [2] @ http://mock:8090（gpt-3.5-turbo）
   c=2: req=4 ok=4 fail=0 TTFT p50/p90=252.616/296.864ms out_tok/s=161.9 cache=96.1%
-[replay] 完成 -> results/agentx-docker.json
-  results/agentx-docker.json/replay.json / replay.md / replay.csv
+[replay] 完成 -> results/agentx_docker
+  results/agentx_docker/replay.json / replay.md / replay.csv
 ```
 
-### 10.4 交叉复验
+> `agentx replay --out` 把参数当**目录**用（会在其下写 `replay.json|md|csv`），所以传 `results/agentx_docker`。
 
+### 10.4 交叉复验
 
 Lead 在本机独立复验同一镜像：`docker run --rm --network none gptzero:v3 smoke` → 8/8 PASS；
 compose `gptzero-mock` healthy、agentx 一次性任务跑通；`results/compose-bench.json` 中
 coding/c=4 共 25 请求（21 个触发 tool_calls）、TTFT p50 = 220 ms、输入吞吐 16.1k tok/s。
+产物归档路径：`results/compose-bench.json`、`results/agentx_docker/replay.{json,md,csv}`。
 
-> 当时 Lead 看到的是 `.venv-agentx` 未排除的那一版镜像（1.22 GB）。修正 `.dockerignore` 后
-> 精简版 388 MB，功能完全一致（同一套 8/8 smoke）。
+> Lead 复验时看到的 1.22 GB 是 `.venv-agentx` 未排除的那一版镜像；修正 `.dockerignore` 后精简版
+> **388 MB**，功能完全一致（同一套 8/8 smoke、同一份 compose 压测脚本）。
+
+`scripts/verify_offline.ps1` 一次性跑完三件事（实测 exit 0）：
+
+```text
+==> 1/3 镜像存在性         [PASS] gptzero:v3（388 MB）
+==> 2/3 断网自检           [PASS] smoke 通过（--network none），耗时 2.8s
+==> 3/3 离线环境校验       gptzero version: 3.0.0 / tokenizer: auto / PASS
+ 结论: 离线验证通过 —— 镜像在 --network none 下可独立完成 mock + 全部 smoke 检查
+```
 
 ### 10.5 known-good 命令清单（可直接复制）
 
 ```bash
 # ---- 构建 ----
 docker build -t gptzero:v3 .                                    # 精简版（388MB，默认，heuristic 分词）
-docker build -t gptzero:v3-hf --build-arg WITH_TRANSFORMERS=1 . # 精确计数版（+~180MB）
+docker build -t gptzero:v3-hf --build-arg WITH_TRANSFORMERS=1 . # 精确计数版（549MB，实测）
 
 # ---- 离线自检（零网络，最硬的验收证据）----
 docker run --rm --network none gptzero:v3 smoke                 # → 8/8 PASS, exit 0
 
 # ---- 交付打包 / 落地 ----
-scripts/offline_image.ps1                    # Windows: build + save + sha256 → dist/gptzero-v3.tar
+scripts/offline_image.ps1                    # Windows: build + save + sha256 → dist/gptzero-v3.tar (88 MB)
 bash scripts/offline_image.sh                # Linux/macOS 等价
 docker load -i dist/gptzero-v3.tar           # 目标机
 scripts/verify_offline.ps1                   # 断网 smoke + 无 curl/wget + HF 离线断言
@@ -477,7 +518,7 @@ docker compose up -d mock                                        # 同上，带 
 
 # ---- 压测 / 回放（容器内同时起，结果落 ./results）----
 docker compose --profile bench  run --rm bench  run --url http://mock:8090 --profile coding --concurrency 8 --duration 20 --out results/compose-bench.json
-docker compose --profile agentx run --rm agentx replay --url http://mock:8090 --concurrency 2 --duration 5 --out results/agentx-docker.json
+docker compose --profile agentx run --rm agentx replay --url http://mock:8090 --concurrency 2 --duration 5 --out results/agentx_docker
 
 # ---- 收尾 ----
 docker compose down -v
@@ -488,8 +529,9 @@ docker rm -f $(docker ps -aq --filter "name=gptzero-") 2>/dev/null || true
 
 | 项 | 现状 | 影响 |
 |---|---|---|
-| 精确计数版镜像（`WITH_TRANSFORMERS=1`） | 构建脚本与依赖清单已就绪；本机 Docker Desktop 在第二次构建中崩溃（daemon `rpc error ... EOF`），未完成体积实测 | 需要精确 `prompt_tokens` 时再构建；默认镜像走 heuristic，契约允许 |
+| 精确计数版镜像（`WITH_TRANSFORMERS=1`） | ✅ 已构建并实测：**549 MB**，容器内 `CountingTokenizer('auto')` → `tokenizers:deepseek_v3_tokenizer`，`--network none` 下可加载 | 需要精确 `prompt_tokens` 时用它；默认版走 heuristic，契约允许 |
 | `docker compose` 端口冲突静默 | 宿主机 8090 被占时，Docker Desktop **不报错**，容器照起但 `NetworkSettings.Ports` 为空（`docker compose ps` 只显示 `8090/tcp`） | 换 `GPTZERO_PORT` 或先确认 `netstat -ano \| findstr :8090` |
-| Docker Desktop 稳定性 | 本机在 1 小时内两次 daemon 卡死/崩溃（C: 磁盘一度只剩 3.6 GB，`docker_data.vhdx` 124 GB） | 与镜像本身无关；建议 `docker builder prune -af` 后重建 |
-| 精确 token 计数 | 默认镜像 tokenizer 打印 `heuristic`，且 warning 会出现两次（`_candidate_paths` 把 `/app` 与 `/app/deepseek_v3_tokenizer` 各加一次） | 仅影响 token 计数精确度，不影响接口形态；已反馈 Lead |
+| Docker Desktop 稳定性 / C 盘空间 | 测试期间 daemon 两次卡死或崩溃（第二次是 `--build-arg WITH_TRANSFORMERS=1` 构建中 `rpc error ... EOF`）；C: 一度只剩 **3.6 GB**，`%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx` 达 **124 GB**；期间 Docker Desktop 自动升级 29.0.1 → 29.9.2 | 与镜像无关，但会影响构建成功率。建议：`docker builder prune -af` + `docker image prune` 后再构建；预留 ≥5 GB 空闲；跨机交付用 88 MB 的 `dist/gptzero-v3.tar` 而不是现场 build |
+| 精确 token 计数在默认镜像 | tokenizer 打印 `heuristic`，且 warning 出现两次（`_candidate_paths` 把 `/app` 与 `/app/deepseek_v3_tokenizer` 各加一次，重复） | 仅影响计数精确度，不影响接口形态；已反馈 Lead |
+| Windows PowerShell 编码 | `.ps1` 里含中文，必须保存为 **UTF-8 with BOM**，否则 Windows PowerShell 5.1 按 ANSI 解析会报语法错误 | 脚本已按 BOM 保存；编辑后若丢失 BOM，用 `[System.IO.File]::WriteAllText(..., New-Object System.Text.UTF8Encoding($true))` 补回 |
 

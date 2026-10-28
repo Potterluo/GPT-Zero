@@ -122,7 +122,7 @@ services:
       - "--url"
       - "http://mock:8090"
       - "--out"
-      - "results/agentx.json"
+      - "results/agentx_docker"
     environment:
       GPTZERO_URL: "http://mock:8090"
       MPLBACKEND: "Agg"

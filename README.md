@@ -54,6 +54,8 @@ curl -X POST http://127.0.0.1:8090/v1/chat/completions \
 
 打开 <http://127.0.0.1:8090/> 看实时面板；`/metrics` 给 Prometheus 抓；`/api/stats` 给脚本读。
 
+![管理面板：吞吐 / TTFT 分位 / 前缀缓存命中 / 工具调用 / 请求明细](results/charts/dashboard.png)
+
 ### 关键参数
 
 | 参数 | 默认 | 作用 |

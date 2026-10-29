@@ -53,6 +53,30 @@ HF cache id）。本地 trace 模式会打 `submission_valid=false`，其余 art
 - 单次 120s、共享一张卡、跑在别人的集群上（其他 chip 有负载），数字只用于**验证链路与相对
   趋势**，不要当榜单。
 
+## 256k 上下文：官方语料（独占一张卡）
+
+Qwen3.5-0.8B 的 `max_position_embeddings=262144`。独占 chip 7、`--gpu-memory-utilization 0.85`
+起服务后，`--max-model-len 262144` 可用，于是能直接跑**官方 pinned 语料**（不再需要 13k 本地 trace）：
+
+```bash
+docker run --rm --net host -v /data/agentx/real_results:/results \
+  -v /data/model:/data/model:ro \
+  ccr.ccs.tencentyun.com/keriko/agentx-offline:1.0.7-arm64 run \
+    --url http://127.0.0.1:8080 --model qwen3.5 \
+    --tokenizer /data/model/Qwen3.5-0.8B \
+    --target qwen35-256k --concurrency 4 \
+    --duration 300 --entries 64 --max-context 250000
+```
+
+| 并发 | 请求 | TTFT p50/p90 | ITL p50 | 输出 tok/s | E2E p90 | 缓存（理论/服务端） |
+|---|---|---|---|---|---|---|
+| 4 | 27 | 7.0 / 9.8 s | 9.5 ms | 35.1 | 35.9 s | 96.1% / 94.2% |
+| 8 | 36 | 10.2 / 17.6 s | 44.9 ms | 56.0 | 67.8 s | 92.8% / 93.6% |
+
+说明：300s 窗口里每个 200k 级 prefill 都要十几秒，完成的请求数少；ISL p50 44k 是 AgentX
+按轨迹 25%~75% 切片后的窗口值，不是语料被截断。该点用的是官方 `--public-dataset`，只有
+时长/条数低于提交阈值（`--unsafe-override`）。
+
 ## 复现产物
 
 - `report.html`：镜像里 `agentx-offline report` 生成（ECharts 内联）

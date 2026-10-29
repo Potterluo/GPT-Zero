@@ -292,6 +292,7 @@ docker run --rm --net host -v /data/agentx/real_results:/results \
 ```
 
 实测（c=4、300s、64 条官方 trace、27 个请求完成）：TTFT p50/p90 = 7.0/9.8 s，
-ITL p50 = 9.5 ms，输出 35 tok/s；ISL p50 44k 是轨迹切片后的窗口值，不是语料被裁。
+ITL p50 = 9.5 ms，输出 35 tok/s；c=8 时 TTFT 10.2/17.6 s、ITL 44.9 ms、输出 56 tok/s。
+ISL p50（44k / 96k）是轨迹切片后的窗口值，不是语料被裁。
 `--max-context 250000` 只是过滤峰值超过模型窗口的 trace，其余仍是官方 pinned 数据。
 

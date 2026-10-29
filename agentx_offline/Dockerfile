@@ -47,7 +47,8 @@ RUN pip install --no-index --find-links /tmp/wheels -r /tmp/requirements.txt && 
 
 COPY runner.py report.py entrypoint.sh prefetch_cache.py /opt/agentx/
 COPY assets /opt/agentx/assets
-RUN chmod +x /opt/agentx/entrypoint.sh
+COPY patch_aiperf_tokenizer.py /tmp/patch_aiperf_tokenizer.py
+RUN chmod +x /opt/agentx/entrypoint.sh && python /tmp/patch_aiperf_tokenizer.py
 
 # Dataset Arrow cache + DeepSeek-V3 tokenizer (built by the prepare script).
 COPY --chown=10001:10001 cache/ /opt/hf/

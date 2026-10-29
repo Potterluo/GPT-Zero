@@ -176,6 +176,29 @@ artifacts 与报告（该模式会打 `submission_valid=false`）。
 harness 的对照：`results/arm_server/`。ARM 镜像的构建方式见 `agentx_offline/Dockerfile`
 （多阶段 wheelhouse，`crick` 在 builder 里用 cargo 编译）。
 
+### 6.2 真实模型：Qwen3.5-0.8B @ 910B3（chip 7）
+
+同一台机器上只占 **一张卡**，用 `vllm-ascend:v0.23.0` 起两个实例（顺序启动，避免共享卡 OOM）：
+
+| target | 配置差异 | 并发 | TTFT p50/p90 | ITL p50 | 输出 tok/s |
+|---|---|---|---|---|---|
+| qwen35-base | 无 MTP、无 cudagraph、无 prefix cache、mem 0.30 | 4 / 8 | 3.8/5.6s · 1.2/5.0s | 22.4 / 22.1 ms | 82.9 / 152.3 |
+| qwen35-mtp | MTP=1、cudagraph [2,16]、prefix cache、mem 0.40 | 4 / 8 | 1.7/8.5s · 4.8/12.9s | 15.3 / 63.6 ms | 81.6 / 80.3 |
+
+要点：
+
+- 服务必须 `--dtype bfloat16`；`float16` 下 GDN 算子 `aclnnChunkGatedDeltaRuleFwdH` 直接报
+  dtype 不匹配，起不来；
+- 官方 393 条语料峰值上下文全部 >32k，`max-model-len=16384` 装不下，因此用本地 13k 合成
+  trace + `--max-context 16000`，该模式会打 `submission_valid=false`；
+- `--tokenizer` 用本地目录 `/data/model/Qwen3.5-0.8B`：镜像已 patch aiperf 1.0.7 的
+  `_resolve_local_snapshot()`（上游把本地目录当 HF repo id，离线必挂）；
+- MTP 在 c=4 把 ITL 从 22.4→15.3ms，但 c=8 反而 63.6ms（cudagraph 捕获尺寸/高并发回退），
+  单卡共享集群上的 120s 结果只用于验证链路和相对趋势。
+
+完整说明与产物：`results/real_qwen35/`。
+
+
 
 ## 7. 已知边界
 

@@ -135,7 +135,7 @@ def load_point(point_dir: Path, target: str, concurrency: int) -> dict | None:
         "cache_theory_pct": _last_group(
             console, r"Theoretical Prefix Cache Hit \(%\)\s*│\s*([\d.]+)"
         ),
-        "cache_server_pct": _last_group(log_text, r"srv\s+prefix_cache_hit=([\d.]+)%"),
+        "cache_server_pct": _last_group(log_text, r"prefix_cache_hit=([\d.]+)%"),
         "interactivity": round(1000.0 / data["inter_token_latency"]["p50"], 1)
         if (data.get("inter_token_latency") or {}).get("p50")
         else None,

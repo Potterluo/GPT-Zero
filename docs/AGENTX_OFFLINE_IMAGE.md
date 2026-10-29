@@ -249,3 +249,49 @@ docker run --rm -v /data/my-traces:/traces -v "$PWD/results:/results" agentx-off
 子集的请求级中位数与全量非常接近（长上下文、短输出的 agentic 形状没变）；报告里出现更低的
 ISL p50（40k~70k）是因为 AgentX 在每条 trace 的 25%~75% 处取轨迹快照，profiling 窗口内只覆盖
 部分上下文，不是语料被截断。
+
+## 11. GitHub Actions 构建（x86 + ARM 原生）
+
+工作流：`.github/workflows/agentx-image.yml`。利用 GitHub 自带的两种 runner 原生构建，避免 QEMU：
+
+| 矩阵 | runner | 产物 |
+|---|---|---|
+| amd64 | `ubuntu-24.04` | `ghcr.io/<owner>/agentx-offline:<version>-amd64[-slim]` |
+| arm64 | `ubuntu-24.04-arm` | `ghcr.io/<owner>/agentx-offline:<version>-arm64[-slim]` |
+
+用法：Actions → **agentx-offline image** → Run workflow，填 `version`（如 `1.0.7`）、
+`with_cache`（是否烤 393 条语料）、`push`。也可以 push `agentx-v1.0.7` 这类 tag 触发
+（默认构建 slim，不烤语料）。
+
+- **slim**（默认）：不烤语料，镜像约 2 GB，运行时 `-v /srv/hf:/opt/hf` 挂缓存；
+- **with_cache**：每个 arch job 先构建 slim、用它跑 `prefetch_cache.py` 把语料 + tokenizer
+  下载到构建上下文，再构建完整镜像（约 3.9 GB）；两条 arch 都成功后自动合成
+  `:<version>` 多架构 manifest；
+- 想推腾讯云 CCR 而不是 GHCR，把 `docker/login-action` 的 registry 换成
+  `ccr.ccs.tencentyun.com`、`IMAGE_NAME` 换成 `keriko/agentx-offline`，并在仓库 secrets 里放
+  `CCR_USERNAME` / `CCR_PASSWORD`；
+- `crick` 没有 linux-aarch64 wheel，ARM job 会在 builder 阶段用 apt 装的 cargo 编译；
+  构建缓存用 `type=gha`，第二次起会快很多。
+
+> 注意：`agentx_offline/cache/` 被 `.gitignore` 排除，CI 里的空目录由 workflow 创建；
+> 不要把本地 1.8 GB 语料提交进仓库。
+
+## 12. 256k 上下文的真实模型（官方语料）
+
+Qwen3.5-0.8B 的 `max_position_embeddings=262144`，独占 chip 7、`--gpu-memory-utilization 0.85`
+可以把 `--max-model-len` 拉到 262144，从而直接跑**官方 pinned 语料**（不再需要本地 trace）：
+
+```bash
+docker run --rm --net host -v /data/agentx/real_results:/results \
+  -v /data/model:/data/model:ro \
+  ccr.ccs.tencentyun.com/keriko/agentx-offline:1.0.7-arm64 run \
+    --url http://127.0.0.1:8080 --model qwen3.5 \
+    --tokenizer /data/model/Qwen3.5-0.8B \
+    --target qwen35-256k --concurrency 4 --duration 300 \
+    --entries 64 --max-context 250000
+```
+
+实测（c=4、300s、64 条官方 trace、27 个请求完成）：TTFT p50/p90 = 7.0/9.8 s，
+ITL p50 = 9.5 ms，输出 35 tok/s；ISL p50 44k 是轨迹切片后的窗口值，不是语料被裁。
+`--max-context 250000` 只是过滤峰值超过模型窗口的 trace，其余仍是官方 pinned 数据。
+

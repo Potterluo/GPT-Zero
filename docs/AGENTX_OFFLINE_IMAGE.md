@@ -23,6 +23,13 @@ OpenAI 兼容的 LLM 推理服务跑 AgentX，并产出官方 artifacts + 可交
 
 ## 2. 构建与离线交付
 
+已构建并推送的镜像（可直接在 ARM 服务器上拉取）：
+
+```bash
+docker pull ccr.ccs.tencentyun.com/keriko/agentx-offline:1.0.7-arm64
+```
+
+自建构建：
 ```bash
 # 0) 准备缓存（一次性；本仓库 data/hf 已由 experiments/agentx_real/prefetch_dataset.py 生成）
 pwsh scripts/prepare_agentx_cache.ps1     # Windows
@@ -152,6 +159,23 @@ artifacts 与报告（该模式会打 `submission_valid=false`）。
 完整 demo（报告 + 7 个点的全部官方 artifacts）：`results/agentx_offline_demo/`；
 截图：`results/agentx_offline_demo/report_preview.png`。换成真实服务时只需改
 `--url/--model/--target`，其余不变。
+
+### 6.1 ARM64（Ascend 服务器实测）
+
+镜像 `ccr.ccs.tencentyun.com/keriko/agentx-offline:1.0.7-arm64`（arm64，3.57 GB）已推到
+腾讯云 CCR，并在 110.138.0.3（aarch64 / openEuler / 2014 GB / 8×910B3）上拉取验证：
+
+| 步骤 | 结果 |
+|---|---|
+| `docker pull` | 成功（digest `sha256:ba8df24…`） |
+| `smoke`（断网） | `dataset rows: 393`、`tokenizer ok`、`offline smoke OK` |
+| `run` vs mock-fast c=4 | `ok=True exit=0`，54 请求，TTFT 184/252 ms，92.9 tok/s，缓存 94.9% |
+| `run` vs mock-slow c=4 | `ok=True exit=0`，43 请求，TTFT 434/575 ms，55.6 tok/s，缓存 93.3% |
+
+报告与数据：`results/arm_image/`（镜像内生成后拉回）；另有不用镜像、在 ARM 上原生跑
+harness 的对照：`results/arm_server/`。ARM 镜像的构建方式见 `agentx_offline/Dockerfile`
+（多阶段 wheelhouse，`crick` 在 builder 里用 cargo 编译）。
+
 
 ## 7. 已知边界
 

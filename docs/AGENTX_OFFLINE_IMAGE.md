@@ -49,6 +49,13 @@ docker run --rm -v /srv/hf:/opt/hf -v "$PWD/results:/results" agentx-offline:sli
 
 ## 3. 对一个真实 LLM 服务跑
 
+`--tokenizer` 接受三种写法：HuggingFace id（默认，镜像已烤好 DeepSeek-V3）、**本地模型或
+tokenizer 目录**、或 `builtin`（零网络，按 `--model` 名生成）。模型目录在 `/mnt/model` 这类
+位置时可以直接 `--tokenizer /mnt/model/Qwen3-8B`（软链接也可，只要容器内能解析）。
+
+注意：官方语料的 hash block 是按 DeepSeek-V3 tokenizer 切分的，换 tokenizer 会改变 token
+计数与 prefix-cache 命中率；要复现官方口径保持默认，做私有流量回归可以换模型自带 tokenizer。
+
 ```bash
 docker run --rm \
   -v "$PWD/results:/results" \

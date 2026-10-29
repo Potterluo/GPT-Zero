@@ -8,7 +8,12 @@
 #   docker build -t agentx-offline:1.0.7 .
 # Slim variant (mount /opt/hf at runtime instead):
 #   docker build --build-arg WITH_CACHE=0 -t agentx-offline:slim .
-FROM python:3.11-slim
+# Base can be swapped for a foreign-arch image (e.g. an arm64 Python base when
+# cross-building on an amd64 host):
+#   docker buildx build --platform linux/arm64 \
+#     --build-arg BASE_IMAGE=llmperf:arm64 -t agentx-offline:arm64 .
+ARG BASE_IMAGE=python:3.11-slim
+FROM ${BASE_IMAGE}
 
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn

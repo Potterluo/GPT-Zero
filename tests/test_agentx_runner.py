@@ -18,6 +18,7 @@ def _args(**overrides) -> argparse.Namespace:
         duration=900,
         entries=8,
         stats_interval=30,
+        max_context=0,
         trust_remote_code=False,
         no_realtime=False,
         extra=[],
@@ -59,3 +60,10 @@ def test_extra_passthrough_and_flags() -> None:
 
 def test_parse_concurrency() -> None:
     assert parse_concurrency("1,4, 16") == [1, 4, 16]
+
+
+def test_max_context_passthrough() -> None:
+    cmd = build_command(_args(max_context=130000), 4, Path("/r/c4"))
+    assert cmd[cmd.index("--max-context-length") + 1] == "130000"
+    cmd_default = build_command(_args(), 4, Path("/r/c4"))
+    assert "--max-context-length" not in cmd_default

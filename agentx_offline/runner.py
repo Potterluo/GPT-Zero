@@ -81,6 +81,8 @@ def build_command(args: argparse.Namespace, concurrency: int, artifact_dir: Path
         cmd += ["--unsafe-override"]
     if args.trust_remote_code:
         cmd += ["--tokenizer-trust-remote-code"]
+    if getattr(args, "max_context", 0):
+        cmd += ["--max-context-length", str(args.max_context)]
     if args.no_realtime:
         cmd += ["--no-realtime-metrics"]
     if args.extra:
@@ -132,6 +134,12 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--concurrency", type=parse_concurrency, default=[4], help="e.g. 4,8,16")
     run.add_argument("--duration", type=int, default=900, help="profiling seconds per point (official >=900)")
     run.add_argument("--entries", type=int, default=8, help="number of traces (393 needs a big machine)")
+    run.add_argument(
+        "--max-context",
+        type=int,
+        default=0,
+        help="drop traces whose peak context exceeds this (match the served model's max_model_len)",
+    )
     run.add_argument("--stats-interval", type=int, default=30)
     run.add_argument("--out", default="/results", help="results root (mounted volume)")
     run.add_argument("--trust-remote-code", action="store_true")

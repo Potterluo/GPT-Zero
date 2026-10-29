@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T11:32:26+0000",
+  "generated_at": "2026-10-29T14:05:39+0800",
   "targets": [
     "mock-fast",
     "mock-slow"
@@ -8,7 +8,7 @@
     {
       "target": "mock-fast",
       "concurrency": 1,
-      "path": "/results/mock-fast/c1",
+      "path": "results\\agentx_offline_demo\\mock-fast\\c1",
       "requests": 10,
       "errors": 0,
       "success_pct": 100.0,
@@ -184,14 +184,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-fast/c1/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-fast\\c1\\profile_export_aiperf.json",
         "records": "mock-fast/c1/profile_export.jsonl"
       }
     },
     {
       "target": "mock-fast",
       "concurrency": 4,
-      "path": "/results/mock-fast/c4",
+      "path": "results\\agentx_offline_demo\\mock-fast\\c4",
       "requests": 35,
       "errors": 0,
       "success_pct": 100.0,
@@ -692,14 +692,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-fast/c4/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-fast\\c4\\profile_export_aiperf.json",
         "records": "mock-fast/c4/profile_export.jsonl"
       }
     },
     {
       "target": "mock-fast",
       "concurrency": 8,
-      "path": "/results/mock-fast/c8",
+      "path": "results\\agentx_offline_demo\\mock-fast\\c8",
       "requests": 14,
       "errors": 0,
       "success_pct": 100.0,
@@ -927,14 +927,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-fast/c8/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-fast\\c8\\profile_export_aiperf.json",
         "records": "mock-fast/c8/profile_export.jsonl"
       }
     },
     {
       "target": "mock-fast",
       "concurrency": 16,
-      "path": "/results/mock-fast/c16",
+      "path": "results\\agentx_offline_demo\\mock-fast\\c16",
       "requests": 25,
       "errors": 0,
       "success_pct": 100.0,
@@ -1300,14 +1300,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-fast/c16/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-fast\\c16\\profile_export_aiperf.json",
         "records": "mock-fast/c16/profile_export.jsonl"
       }
     },
     {
       "target": "mock-slow",
       "concurrency": 1,
-      "path": "/results/mock-slow/c1",
+      "path": "results\\agentx_offline_demo\\mock-slow\\c1",
       "requests": 8,
       "errors": 0,
       "success_pct": 100.0,
@@ -1457,14 +1457,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-slow/c1/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-slow\\c1\\profile_export_aiperf.json",
         "records": "mock-slow/c1/profile_export.jsonl"
       }
     },
     {
       "target": "mock-slow",
       "concurrency": 4,
-      "path": "/results/mock-slow/c4",
+      "path": "results\\agentx_offline_demo\\mock-slow\\c4",
       "requests": 43,
       "errors": 0,
       "success_pct": 100.0,
@@ -2049,14 +2049,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-slow/c4/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-slow\\c4\\profile_export_aiperf.json",
         "records": "mock-slow/c4/profile_export.jsonl"
       }
     },
     {
       "target": "mock-slow",
       "concurrency": 8,
-      "path": "/results/mock-slow/c8",
+      "path": "results\\agentx_offline_demo\\mock-slow\\c8",
       "requests": 12,
       "errors": 0,
       "success_pct": 100.0,
@@ -2253,14 +2253,14 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-slow/c8/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-slow\\c8\\profile_export_aiperf.json",
         "records": "mock-slow/c8/profile_export.jsonl"
       }
     },
     {
       "target": "mock-slow",
       "concurrency": 16,
-      "path": "/results/mock-slow/c16",
+      "path": "results\\agentx_offline_demo\\mock-slow\\c16",
       "requests": 23,
       "errors": 0,
       "success_pct": 100.0,
@@ -2605,7 +2605,7 @@
         ]
       },
       "artifacts": {
-        "summary": "results/mock-slow/c16/profile_export_aiperf.json",
+        "summary": "agentx_offline_demo\\mock-slow\\c16\\profile_export_aiperf.json",
         "records": "mock-slow/c16/profile_export.jsonl"
       }
     }

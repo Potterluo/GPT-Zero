@@ -30,6 +30,9 @@ table.grid tr:hover td{background:#131d28}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
 .tab{padding:6px 12px;border-radius:999px;border:1px solid #223142;color:#9fb0c6;font-size:12px;cursor:pointer;background:#0f1620}
 .tab.active{background:#17263a;color:#dbe6f3;border-color:#2f4a68}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:2px 0 10px;color:#9fb0c6;font-size:13px}
+.controls select{background:#0f1620;color:#dbe6f3;border:1px solid #223142;border-radius:8px;padding:6px 10px;font-size:13px}
+.controls .hint{color:#6f8199;font-size:12px}
 .note{color:#8ea3bb;font-size:13px;line-height:1.8}
 footer{color:#7f90a6;font-size:12px;margin-top:24px}
 a{color:#6ea8ff;text-decoration:none}
@@ -85,7 +88,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   <h1>AgentX 推理性能对比报告</h1>
   <div class="meta">
     目标：mock-fast, mock-slow · 并发点：1, 4, 8, 16 ·
-    数据集：semianalysisai/cc-traces-weka-062126 · 生成于 2026-10-28 11:32:26
+    数据集：semianalysisai/cc-traces-weka-062126 · 生成于 2026-10-29 14:05:39
     <br>所有数字直接来自 agentx-harness 的 profile_export_aiperf.json / server_metrics_export.json；
     AgentX 是闭环 agent 回放，并发数是「并发 agent 会话」而不是固定请求批次。
   </div>
@@ -118,6 +121,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   <div class="panel">
     <h2>汇总表</h2>
     <table class='grid'><thead><tr><th>目标 / 模型</th><th>并发</th><th>请求</th><th>成功</th><th>RPS</th><th>TTFT p50/p90/p99 (ms)</th><th>ITL p50 (ms)</th><th>交互性 tok/s</th><th>E2E p50/p90 (ms)</th><th>输出 tok/s</th><th>输入 tok/s</th><th>ISL p50</th><th>OSL p50</th><th>缓存命中 理论/实测</th></tr></thead><tbody><tr><td class='target'>mock-fast</td><td class='num'>1</td><td class='num'>10</td><td class='num'>100.0%</td><td class='num'>0.08</td><td class='num'>235 / 292 / 317</td><td class='num'>6.3</td><td class='num'>159</td><td class='num'>5,173 / 10,515</td><td class='num'>69</td><td class='num'>28,323</td><td class='num'>339,962</td><td class='num'>925</td><td class='num'>99.6% / 99.4%</td></tr><tr><td class='target'>mock-fast</td><td class='num'>4</td><td class='num'>35</td><td class='num'>100.0%</td><td class='num'>0.23</td><td class='num'>143 / 237 / 45,210</td><td class='num'>6.3</td><td class='num'>158</td><td class='num'>963 / 2,528</td><td class='num'>78</td><td class='num'>9,047</td><td class='num'>39,557</td><td class='num'>123</td><td class='num'>93.2% / 92.9%</td></tr><tr><td class='target'>mock-fast</td><td class='num'>8</td><td class='num'>14</td><td class='num'>100.0%</td><td class='num'>0.09</td><td class='num'>255 / 405 / 435</td><td class='num'>6.1</td><td class='num'>164</td><td class='num'>6,524 / 24,561</td><td class='num'>155</td><td class='num'>6,283</td><td class='num'>70,643</td><td class='num'>960</td><td class='num'>81.7% / 81.6%</td></tr><tr><td class='target'>mock-fast</td><td class='num'>16</td><td class='num'>25</td><td class='num'>100.0%</td><td class='num'>0.17</td><td class='num'>244 / 483 / 632</td><td class='num'>6.5</td><td class='num'>154</td><td class='num'>4,539 / 26,347</td><td class='num'>293</td><td class='num'>10,418</td><td class='num'>61,193</td><td class='num'>670</td><td class='num'>72.0% / 71.9%</td></tr><tr><td class='target'>mock-slow</td><td class='num'>1</td><td class='num'>8</td><td class='num'>100.0%</td><td class='num'>0.06</td><td class='num'>527 / 665 / 671</td><td class='num'>14.5</td><td class='num'>69</td><td class='num'>5,207 / 22,322</td><td class='num'>39</td><td class='num'>20,641</td><td class='num'>339,153</td><td class='num'>416</td><td class='num'>99.6% / 99.4%</td></tr><tr><td class='target'>mock-slow</td><td class='num'>4</td><td class='num'>43</td><td class='num'>100.0%</td><td class='num'>0.29</td><td class='num'>375 / 582 / 651</td><td class='num'>14.6</td><td class='num'>69</td><td class='num'>2,136 / 4,045</td><td class='num'>56</td><td class='num'>11,943</td><td class='num'>44,318</td><td class='num'>113</td><td class='num'>93.5% / 93.3%</td></tr><tr><td class='target'>mock-slow</td><td class='num'>8</td><td class='num'>12</td><td class='num'>100.0%</td><td class='num'>0.08</td><td class='num'>739 / 1,107 / 1,250</td><td class='num'>14.1</td><td class='num'>71</td><td class='num'>14,070 / 49,179</td><td class='num'>139</td><td class='num'>5,050</td><td class='num'>68,114</td><td class='num'>960</td><td class='num'>79.4% / 80.6%</td></tr><tr><td class='target'>mock-slow</td><td class='num'>16</td><td class='num'>23</td><td class='num'>100.0%</td><td class='num'>0.14</td><td class='num'>678 / 1,424 / 2,811</td><td class='num'>15.0</td><td class='num'>67</td><td class='num'>9,385 / 52,621</td><td class='num'>222</td><td class='num'>8,432</td><td class='num'>61,193</td><td class='num'>554</td><td class='num'>69.2% / 69.2%</td></tr></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h2>曲线浏览器（X / Y 可切换）</h2>
+    <div class="controls">
+      <label>X 轴 <select id="x-metric"></select></label>
+      <label>Y 轴 <select id="y-metric"></select></label>
+      <label><input type="checkbox" id="log-axes" checked> 对数轴</label>
+      <span class="hint">每个点是一个并发点；X 选「并发」时按顺序连线，选其他指标时是散点（吞吐-延迟前沿），可任意组合 TTFT / ITL / E2E / 缓存。</span>
+    </div>
+    <div class="chart" id="c-explorer" style="height:460px"></div>
   </div>
 
   <div class="panel">
@@ -186,5 +200,78 @@ function show(key) {
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => show(t.dataset.key)));
 if (keys.length) show(keys[0]);
+
+const EXPLORER = {"metrics": [{"key": "concurrency", "label": "\u5e76\u53d1", "unit": "", "log": false}, {"key": "out_tps", "label": "\u8f93\u51fa\u541e\u5410", "unit": "tok/s", "log": true}, {"key": "in_tps", "label": "\u8f93\u5165\u541e\u5410", "unit": "tok/s", "log": true}, {"key": "interactivity", "label": "\u4ea4\u4e92\u6027 1/TPOT", "unit": "tok/s", "log": true}, {"key": "ttft_p50", "label": "TTFT p50", "unit": "ms", "log": true}, {"key": "ttft_p90", "label": "TTFT p90", "unit": "ms", "log": true}, {"key": "ttft_p99", "label": "TTFT p99", "unit": "ms", "log": true}, {"key": "itl_p50", "label": "ITL p50", "unit": "ms", "log": true}, {"key": "e2e_p50", "label": "E2E p50", "unit": "ms", "log": true}, {"key": "e2e_p90", "label": "E2E p90", "unit": "ms", "log": true}, {"key": "rps", "label": "\u8bf7\u6c42\u541e\u5410", "unit": "req/s", "log": true}, {"key": "cache_theory_pct", "label": "\u7f13\u5b58\u547d\u4e2d\uff08\u7406\u8bba\uff09", "unit": "%", "log": false}, {"key": "cache_server_pct", "label": "\u7f13\u5b58\u547d\u4e2d\uff08\u670d\u52a1\u7aef\uff09", "unit": "%", "log": false}, {"key": "isl_p50", "label": "ISL p50", "unit": "tokens", "log": true}, {"key": "osl_p50", "label": "OSL p50", "unit": "tokens", "log": true}], "series": [{"name": "mock-fast", "points": [{"concurrency": 1, "out_tps": 68.904, "in_tps": 28323.409, "interactivity": 158.8, "ttft_p50": 234.762, "ttft_p90": 292.021, "ttft_p99": 317.287, "itl_p50": 6.297, "e2e_p50": 5173.349, "e2e_p90": 10514.966, "rps": 0.083, "cache_theory_pct": 99.56, "cache_server_pct": 99.4, "isl_p50": 339962.0, "osl_p50": 925.0}, {"concurrency": 4, "out_tps": 78.382, "in_tps": 9046.677, "interactivity": 158.3, "ttft_p50": 143.161, "ttft_p90": 237.341, "ttft_p99": 45209.505, "itl_p50": 6.319, "e2e_p50": 962.838, "e2e_p90": 2527.995, "rps": 0.233, "cache_theory_pct": 93.15, "cache_server_pct": 92.9, "isl_p50": 39557.0, "osl_p50": 123.0}, {"concurrency": 8, "out_tps": 155.416, "in_tps": 6282.643, "interactivity": 163.7, "ttft_p50": 255.253, "ttft_p90": 405.234, "ttft_p99": 435.373, "itl_p50": 6.11, "e2e_p50": 6523.857, "e2e_p90": 24560.666, "rps": 0.093, "cache_theory_pct": 81.66, "cache_server_pct": 81.6, "isl_p50": 70643.0, "osl_p50": 960.5}, {"concurrency": 16, "out_tps": 293.07, "in_tps": 10418.427, "interactivity": 154.3, "ttft_p50": 244.101, "ttft_p90": 482.887, "ttft_p99": 632.441, "itl_p50": 6.481, "e2e_p50": 4538.796, "e2e_p90": 26347.089, "rps": 0.167, "cache_theory_pct": 71.96, "cache_server_pct": 71.9, "isl_p50": 61193.0, "osl_p50": 670.0}]}, {"name": "mock-slow", "points": [{"concurrency": 1, "out_tps": 39.291, "in_tps": 20640.828, "interactivity": 68.8, "ttft_p50": 527.464, "ttft_p90": 664.71, "ttft_p99": 670.806, "itl_p50": 14.535, "e2e_p50": 5206.857, "e2e_p90": 22321.656, "rps": 0.061, "cache_theory_pct": 99.62, "cache_server_pct": 99.4, "isl_p50": 339153.0, "osl_p50": 416.0}, {"concurrency": 4, "out_tps": 55.561, "in_tps": 11943.115, "interactivity": 68.7, "ttft_p50": 375.32, "ttft_p90": 582.241, "ttft_p99": 651.198, "itl_p50": 14.55, "e2e_p50": 2136.198, "e2e_p90": 4044.744, "rps": 0.287, "cache_theory_pct": 93.55, "cache_server_pct": 93.3, "isl_p50": 44318.0, "osl_p50": 113.0}, {"concurrency": 8, "out_tps": 138.624, "in_tps": 5050.442, "interactivity": 70.9, "ttft_p50": 738.586, "ttft_p90": 1107.312, "ttft_p99": 1249.621, "itl_p50": 14.11, "e2e_p50": 14070.157, "e2e_p90": 49178.985, "rps": 0.08, "cache_theory_pct": 79.43, "cache_server_pct": 80.6, "isl_p50": 68114.0, "osl_p50": 960.5}, {"concurrency": 16, "out_tps": 222.359, "in_tps": 8431.727, "interactivity": 66.9, "ttft_p50": 677.977, "ttft_p90": 1424.106, "ttft_p99": 2811.049, "itl_p50": 14.958, "e2e_p50": 9385.34, "e2e_p90": 52620.933, "rps": 0.144, "cache_theory_pct": 69.25, "cache_server_pct": 69.2, "isl_p50": 61193.0, "osl_p50": 554.0}]}], "defaultX": "out_tps", "defaultY": "interactivity"};
+(function () {
+  const el = document.getElementById("c-explorer");
+  if (!el) return;
+  const chart = echarts.init(el, null, {renderer: "canvas"});
+  const xs = document.getElementById("x-metric");
+  const ys = document.getElementById("y-metric");
+  const logEl = document.getElementById("log-axes");
+  const metric = key => EXPLORER.metrics.find(m => m.key === key);
+  const label = m => m.label + (m.unit ? " (" + m.unit + ")" : "");
+  for (const m of EXPLORER.metrics) {
+    xs.add(new Option(label(m), m.key));
+    ys.add(new Option(label(m), m.key));
+  }
+  xs.value = EXPLORER.defaultX;
+  ys.value = EXPLORER.defaultY;
+  function build() {
+    const xm = metric(xs.value), ym = metric(ys.value);
+    const isLog = m => logEl.checked && m.log;
+    const series = EXPLORER.series.map(s => ({
+      name: s.name,
+      // Lines only make sense when the X axis is the concurrency sweep;
+      // for metric-vs-metric views draw a scatter (Pareto-style).
+      type: xm.key === "concurrency" ? "line" : "scatter",
+      symbolSize: xm.key === "concurrency" ? 8 : 12,
+      connectNulls: true,
+      emphasis: {focus: "series"},
+      data: s.points
+        .map(p => [p[xm.key], p[ym.key], p.concurrency])
+        .filter(d => d[0] != null && d[1] != null)
+        .filter(d => (!isLog(xm) || d[0] > 0) && (!isLog(ym) || d[1] > 0)),
+    }));
+    return {
+      backgroundColor: "transparent",
+      grid: {left: 76, right: 32, top: 36, bottom: 78},
+      tooltip: {
+        trigger: "item",
+        formatter: params => {
+          const d = params.data;
+          return "<b>" + params.seriesName + "</b> · c" + d[2] +
+            "<br>" + label(xm) + ": " + d[0] +
+            "<br>" + label(ym) + ": " + d[1];
+        },
+      },
+      legend: {bottom: 0, textStyle: {color: "#9fb0c6"}},
+      xAxis: {
+        type: isLog(xm) ? "log" : "value",
+        name: label(xm),
+        nameLocation: "middle",
+        nameGap: 32,
+        axisLabel: {color: "#9fb0c6"},
+        splitLine: {lineStyle: {color: "#1d2836"}},
+      },
+      yAxis: {
+        type: isLog(ym) ? "log" : "value",
+        name: label(ym),
+        nameLocation: "middle",
+        nameGap: 52,
+        axisLabel: {color: "#9fb0c6"},
+        splitLine: {lineStyle: {color: "#1d2836"}},
+      },
+      series,
+    };
+  }
+  function render() { chart.setOption(build(), true); }
+  xs.addEventListener("change", render);
+  ys.addEventListener("change", render);
+  logEl.addEventListener("change", render);
+  window.addEventListener("resize", () => chart.resize());
+  render();
+})();
+
 </script>
 </body></html>

@@ -30,6 +30,9 @@ table.grid tr:hover td{background:#131d28}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
 .tab{padding:6px 12px;border-radius:999px;border:1px solid #223142;color:#9fb0c6;font-size:12px;cursor:pointer;background:#0f1620}
 .tab.active{background:#17263a;color:#dbe6f3;border-color:#2f4a68}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:2px 0 10px;color:#9fb0c6;font-size:13px}
+.controls select{background:#0f1620;color:#dbe6f3;border:1px solid #223142;border-radius:8px;padding:6px 10px;font-size:13px}
+.controls .hint{color:#6f8199;font-size:12px}
 .note{color:#8ea3bb;font-size:13px;line-height:1.8}
 footer{color:#7f90a6;font-size:12px;margin-top:24px}
 a{color:#6ea8ff;text-decoration:none}
@@ -85,7 +88,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   <h1>AgentX 推理性能对比报告</h1>
   <div class="meta">
     目标：qwen35-256k, qwen35-base, qwen35-mtp · 并发点：4, 8 ·
-    数据集：semianalysisai/cc-traces-weka-062126 · 生成于 2026-10-29 05:34:54
+    数据集：semianalysisai/cc-traces-weka-062126 · 生成于 2026-10-29 06:05:43
     <br>所有数字直接来自 agentx-harness 的 profile_export_aiperf.json / server_metrics_export.json；
     AgentX 是闭环 agent 回放，并发数是「并发 agent 会话」而不是固定请求批次。
   </div>
@@ -129,6 +132,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   <div class="panel">
     <h2>汇总表</h2>
     <table class='grid'><thead><tr><th>目标 / 模型</th><th>并发</th><th>请求</th><th>成功</th><th>RPS</th><th>TTFT p50/p90/p99 (ms)</th><th>ITL p50 (ms)</th><th>交互性 tok/s</th><th>E2E p50/p90 (ms)</th><th>输出 tok/s</th><th>输入 tok/s</th><th>ISL p50</th><th>OSL p50</th><th>缓存命中 理论/实测</th></tr></thead><tbody><tr><td class='target'>qwen35-256k</td><td class='num'>4</td><td class='num'>27</td><td class='num'>100.0%</td><td class='num'>0.08</td><td class='num'>6,997 / 9,797 / 20,957</td><td class='num'>9.5</td><td class='num'>105</td><td class='num'>7,982 / 35,901</td><td class='num'>35</td><td class='num'>3,701</td><td class='num'>44,333</td><td class='num'>149</td><td class='num'>96.1% / 94.2%</td></tr><tr><td class='target'>qwen35-256k</td><td class='num'>8</td><td class='num'>36</td><td class='num'>100.0%</td><td class='num'>0.11</td><td class='num'>10,217 / 17,580 / 24,562</td><td class='num'>44.9</td><td class='num'>22</td><td class='num'>22,566 / 67,841</td><td class='num'>56</td><td class='num'>8,863</td><td class='num'>96,304</td><td class='num'>277</td><td class='num'>92.8% / 93.6%</td></tr><tr><td class='target'>qwen35-base</td><td class='num'>4</td><td class='num'>32</td><td class='num'>100.0%</td><td class='num'>0.21</td><td class='num'>3,834 / 5,638 / 7,900</td><td class='num'>22.4</td><td class='num'>45</td><td class='num'>10,258 / 21,894</td><td class='num'>83</td><td class='num'>2,098</td><td class='num'>9,702</td><td class='num'>251</td><td class='num'>100.0% / 99.9%</td></tr><tr><td class='target'>qwen35-base</td><td class='num'>8</td><td class='num'>59</td><td class='num'>100.0%</td><td class='num'>0.39</td><td class='num'>1,214 / 4,957 / 6,766</td><td class='num'>22.1</td><td class='num'>45</td><td class='num'>9,330 / 29,190</td><td class='num'>152</td><td class='num'>4,164</td><td class='num'>10,899</td><td class='num'>234</td><td class='num'>100.0% / 99.9%</td></tr><tr><td class='target'>qwen35-mtp</td><td class='num'>4</td><td class='num'>29</td><td class='num'>100.0%</td><td class='num'>0.19</td><td class='num'>1,709 / 8,458 / 18,736</td><td class='num'>15.3</td><td class='num'>65</td><td class='num'>10,680 / 25,108</td><td class='num'>82</td><td class='num'>1,910</td><td class='num'>9,701</td><td class='num'>255</td><td class='num'>100.0% / 99.9%</td></tr><tr><td class='target'>qwen35-mtp</td><td class='num'>8</td><td class='num'>30</td><td class='num'>100.0%</td><td class='num'>0.20</td><td class='num'>4,775 / 12,866 / 20,444</td><td class='num'>63.6</td><td class='num'>16</td><td class='num'>24,266 / 46,988</td><td class='num'>80</td><td class='num'>2,177</td><td class='num'>11,250</td><td class='num'>233</td><td class='num'>100.0% / 99.8%</td></tr></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h2>曲线浏览器（X / Y 可切换）</h2>
+    <div class="controls">
+      <label>X 轴 <select id="x-metric"></select></label>
+      <label>Y 轴 <select id="y-metric"></select></label>
+      <label><input type="checkbox" id="log-axes" checked> 对数轴</label>
+      <span class="hint">每个点是一个并发点；X 选「并发」时按顺序连线，选其他指标时是散点（吞吐-延迟前沿），可任意组合 TTFT / ITL / E2E / 缓存。</span>
+    </div>
+    <div class="chart" id="c-explorer" style="height:460px"></div>
   </div>
 
   <div class="panel">
@@ -197,5 +211,78 @@ function show(key) {
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => show(t.dataset.key)));
 if (keys.length) show(keys[0]);
+
+const EXPLORER = {"metrics": [{"key": "concurrency", "label": "\u5e76\u53d1", "unit": "", "log": false}, {"key": "out_tps", "label": "\u8f93\u51fa\u541e\u5410", "unit": "tok/s", "log": true}, {"key": "in_tps", "label": "\u8f93\u5165\u541e\u5410", "unit": "tok/s", "log": true}, {"key": "interactivity", "label": "\u4ea4\u4e92\u6027 1/TPOT", "unit": "tok/s", "log": true}, {"key": "ttft_p50", "label": "TTFT p50", "unit": "ms", "log": true}, {"key": "ttft_p90", "label": "TTFT p90", "unit": "ms", "log": true}, {"key": "ttft_p99", "label": "TTFT p99", "unit": "ms", "log": true}, {"key": "itl_p50", "label": "ITL p50", "unit": "ms", "log": true}, {"key": "e2e_p50", "label": "E2E p50", "unit": "ms", "log": true}, {"key": "e2e_p90", "label": "E2E p90", "unit": "ms", "log": true}, {"key": "rps", "label": "\u8bf7\u6c42\u541e\u5410", "unit": "req/s", "log": true}, {"key": "cache_theory_pct", "label": "\u7f13\u5b58\u547d\u4e2d\uff08\u7406\u8bba\uff09", "unit": "%", "log": false}, {"key": "cache_server_pct", "label": "\u7f13\u5b58\u547d\u4e2d\uff08\u670d\u52a1\u7aef\uff09", "unit": "%", "log": false}, {"key": "isl_p50", "label": "ISL p50", "unit": "tokens", "log": true}, {"key": "osl_p50", "label": "OSL p50", "unit": "tokens", "log": true}], "series": [{"name": "qwen35-256k", "points": [{"concurrency": 4, "out_tps": 35.085, "in_tps": 3700.636, "interactivity": 105.0, "ttft_p50": 6996.727, "ttft_p90": 9797.146, "ttft_p99": 20956.542, "itl_p50": 9.521, "e2e_p50": 7982.485, "e2e_p90": 35901.423, "rps": 0.082, "cache_theory_pct": 96.09, "cache_server_pct": 94.2, "isl_p50": 44333.0, "osl_p50": 149.0}, {"concurrency": 8, "out_tps": 55.96, "in_tps": 8862.693, "interactivity": 22.3, "ttft_p50": 10216.726, "ttft_p90": 17579.743, "ttft_p99": 24562.362, "itl_p50": 44.851, "e2e_p50": 22565.842, "e2e_p90": 67840.733, "rps": 0.109, "cache_theory_pct": 92.83, "cache_server_pct": 93.6, "isl_p50": 96304.5, "osl_p50": 277.0}]}, {"name": "qwen35-base", "points": [{"concurrency": 4, "out_tps": 82.933, "in_tps": 2098.469, "interactivity": 44.6, "ttft_p50": 3833.722, "ttft_p90": 5637.717, "ttft_p99": 7899.721, "itl_p50": 22.44, "e2e_p50": 10257.883, "e2e_p90": 21894.317, "rps": 0.213, "cache_theory_pct": 100.0, "cache_server_pct": 99.9, "isl_p50": 9702.5, "osl_p50": 251.0}, {"concurrency": 8, "out_tps": 152.307, "in_tps": 4164.269, "interactivity": 45.2, "ttft_p50": 1213.734, "ttft_p90": 4957.383, "ttft_p99": 6766.361, "itl_p50": 22.115, "e2e_p50": 9329.553, "e2e_p90": 29189.893, "rps": 0.393, "cache_theory_pct": 99.99, "cache_server_pct": 99.9, "isl_p50": 10899.0, "osl_p50": 234.0}]}, {"name": "qwen35-mtp", "points": [{"concurrency": 4, "out_tps": 81.553, "in_tps": 1909.628, "interactivity": 65.2, "ttft_p50": 1708.572, "ttft_p90": 8457.986, "ttft_p99": 18736.378, "itl_p50": 15.329, "e2e_p50": 10680.351, "e2e_p90": 25107.627, "rps": 0.193, "cache_theory_pct": 100.0, "cache_server_pct": 99.9, "isl_p50": 9701.0, "osl_p50": 255.0}, {"concurrency": 8, "out_tps": 80.326, "in_tps": 2176.578, "interactivity": 15.7, "ttft_p50": 4774.593, "ttft_p90": 12865.773, "ttft_p99": 20444.401, "itl_p50": 63.575, "e2e_p50": 24266.295, "e2e_p90": 46987.756, "rps": 0.2, "cache_theory_pct": 100.0, "cache_server_pct": 99.8, "isl_p50": 11250.0, "osl_p50": 233.0}]}], "defaultX": "out_tps", "defaultY": "interactivity"};
+(function () {
+  const el = document.getElementById("c-explorer");
+  if (!el) return;
+  const chart = echarts.init(el, null, {renderer: "canvas"});
+  const xs = document.getElementById("x-metric");
+  const ys = document.getElementById("y-metric");
+  const logEl = document.getElementById("log-axes");
+  const metric = key => EXPLORER.metrics.find(m => m.key === key);
+  const label = m => m.label + (m.unit ? " (" + m.unit + ")" : "");
+  for (const m of EXPLORER.metrics) {
+    xs.add(new Option(label(m), m.key));
+    ys.add(new Option(label(m), m.key));
+  }
+  xs.value = EXPLORER.defaultX;
+  ys.value = EXPLORER.defaultY;
+  function build() {
+    const xm = metric(xs.value), ym = metric(ys.value);
+    const isLog = m => logEl.checked && m.log;
+    const series = EXPLORER.series.map(s => ({
+      name: s.name,
+      // Lines only make sense when the X axis is the concurrency sweep;
+      // for metric-vs-metric views draw a scatter (Pareto-style).
+      type: xm.key === "concurrency" ? "line" : "scatter",
+      symbolSize: xm.key === "concurrency" ? 8 : 12,
+      connectNulls: true,
+      emphasis: {focus: "series"},
+      data: s.points
+        .map(p => [p[xm.key], p[ym.key], p.concurrency])
+        .filter(d => d[0] != null && d[1] != null)
+        .filter(d => (!isLog(xm) || d[0] > 0) && (!isLog(ym) || d[1] > 0)),
+    }));
+    return {
+      backgroundColor: "transparent",
+      grid: {left: 76, right: 32, top: 36, bottom: 78},
+      tooltip: {
+        trigger: "item",
+        formatter: params => {
+          const d = params.data;
+          return "<b>" + params.seriesName + "</b> · c" + d[2] +
+            "<br>" + label(xm) + ": " + d[0] +
+            "<br>" + label(ym) + ": " + d[1];
+        },
+      },
+      legend: {bottom: 0, textStyle: {color: "#9fb0c6"}},
+      xAxis: {
+        type: isLog(xm) ? "log" : "value",
+        name: label(xm),
+        nameLocation: "middle",
+        nameGap: 32,
+        axisLabel: {color: "#9fb0c6"},
+        splitLine: {lineStyle: {color: "#1d2836"}},
+      },
+      yAxis: {
+        type: isLog(ym) ? "log" : "value",
+        name: label(ym),
+        nameLocation: "middle",
+        nameGap: 52,
+        axisLabel: {color: "#9fb0c6"},
+        splitLine: {lineStyle: {color: "#1d2836"}},
+      },
+      series,
+    };
+  }
+  function render() { chart.setOption(build(), true); }
+  xs.addEventListener("change", render);
+  ys.addEventListener("change", render);
+  logEl.addEventListener("change", render);
+  window.addEventListener("resize", () => chart.resize());
+  render();
+})();
+
 </script>
 </body></html>

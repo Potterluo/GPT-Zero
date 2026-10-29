@@ -106,6 +106,9 @@ docker run --rm -v "$PWD/results:/results" agentx-offline:1.0.7 report --root /r
 - 每个 target 的 KPI 卡（峰值输出吞吐、最好 TTFT p50、服务端缓存命中）；
 - 汇总表（请求、成功率、RPS、TTFT p50/p90/p99、ITL、E2E、tok/s、ISL/OSL、缓存理论/实测）；
 - 6 张交互式图（TTFT p50、TTFT p90、输出吞吐、请求吞吐、E2E p90、缓存命中）按 target 对比；
+- **曲线浏览器**（InferenceX 风格）：X / Y 各一个下拉框，任意指标组合（吞吐、交互性、TTFT p50/p90/p99、
+  ITL、E2E、RPS、缓存、ISL/OSL、并发），可切对数轴；X 选「并发」时按顺序连线，选其他指标时
+  自动变散点（吞吐-延迟前沿）；
 - 每个 target 的时序页（profiling 每秒的 TTFT 与吞吐）。
 
 图表为 ECharts 内联渲染，**单文件、可离线打开**（发给同事也不需要联网）。

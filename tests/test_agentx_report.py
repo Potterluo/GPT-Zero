@@ -90,6 +90,10 @@ def test_discover_and_render(tmp_path: Path) -> None:
     assert "qwen3-8b" in html and "llama-3-8b" in html
     assert 'id="c-ttft50"' in html
     assert 'id="c-cdf-ttft"' in html
+    assert 'id="x-metric"' in html and 'id="y-metric"' in html
+    assert 'id="c-explorer"' in html
+    assert '"defaultX": "out_tps"' in html
+    assert '"defaultY": "interactivity"' in html
     assert "echarts" in html
     assert "95.5%" in html
 

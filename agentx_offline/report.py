@@ -380,6 +380,140 @@ def _timeline_cap(values: list[float]) -> float | None:
     return max(500.0, min(5000.0, median * 4.0))
 
 
+_EXPLORER_METRICS = [
+    ("concurrency", "并发", "", False),
+    ("out_tps", "输出吞吐", "tok/s", True),
+    ("in_tps", "输入吞吐", "tok/s", True),
+    ("interactivity", "交互性 1/TPOT", "tok/s", True),
+    ("ttft_p50", "TTFT p50", "ms", True),
+    ("ttft_p90", "TTFT p90", "ms", True),
+    ("ttft_p99", "TTFT p99", "ms", True),
+    ("itl_p50", "ITL p50", "ms", True),
+    ("e2e_p50", "E2E p50", "ms", True),
+    ("e2e_p90", "E2E p90", "ms", True),
+    ("rps", "请求吞吐", "req/s", True),
+    ("cache_theory_pct", "缓存命中（理论）", "%", False),
+    ("cache_server_pct", "缓存命中（服务端）", "%", False),
+    ("isl_p50", "ISL p50", "tokens", True),
+    ("osl_p50", "OSL p50", "tokens", True),
+]
+
+
+def _point_metrics(point: dict) -> dict:
+    return {
+        "concurrency": point["concurrency"],
+        "out_tps": point.get("out_tps"),
+        "in_tps": point.get("in_tps"),
+        "interactivity": point.get("interactivity"),
+        "ttft_p50": point["ttft"].get("p50"),
+        "ttft_p90": point["ttft"].get("p90"),
+        "ttft_p99": point["ttft"].get("p99"),
+        "itl_p50": point["itl"].get("p50"),
+        "e2e_p50": point["e2e"].get("p50"),
+        "e2e_p90": point["e2e"].get("p90"),
+        "rps": point.get("rps"),
+        "cache_theory_pct": point.get("cache_theory_pct"),
+        "cache_server_pct": point.get("cache_server_pct"),
+        "isl_p50": point.get("isl_p50"),
+        "osl_p50": point.get("osl_p50"),
+    }
+
+
+def _explorer_options(points: list[dict], targets: list[str]) -> dict:
+    """Point-level payload for the switchable X/Y explorer chart."""
+    metrics = [
+        {"key": key, "label": label, "unit": unit, "log": log}
+        for key, label, unit, log in _EXPLORER_METRICS
+    ]
+    series = []
+    for target in targets:
+        pts = sorted(
+            (p for p in points if p["target"] == target), key=lambda p: p["concurrency"]
+        )
+        series.append({"name": target, "points": [_point_metrics(p) for p in pts]})
+    return {
+        "metrics": metrics,
+        "series": series,
+        "defaultX": "out_tps",
+        "defaultY": "interactivity",
+    }
+
+
+EXPLORER_JS = r"""
+const EXPLORER = __EXPLORER__;
+(function () {
+  const el = document.getElementById("c-explorer");
+  if (!el) return;
+  const chart = echarts.init(el, null, {renderer: "canvas"});
+  const xs = document.getElementById("x-metric");
+  const ys = document.getElementById("y-metric");
+  const logEl = document.getElementById("log-axes");
+  const metric = key => EXPLORER.metrics.find(m => m.key === key);
+  const label = m => m.label + (m.unit ? " (" + m.unit + ")" : "");
+  for (const m of EXPLORER.metrics) {
+    xs.add(new Option(label(m), m.key));
+    ys.add(new Option(label(m), m.key));
+  }
+  xs.value = EXPLORER.defaultX;
+  ys.value = EXPLORER.defaultY;
+  function build() {
+    const xm = metric(xs.value), ym = metric(ys.value);
+    const isLog = m => logEl.checked && m.log;
+    const series = EXPLORER.series.map(s => ({
+      name: s.name,
+      // Lines only make sense when the X axis is the concurrency sweep;
+      // for metric-vs-metric views draw a scatter (Pareto-style).
+      type: xm.key === "concurrency" ? "line" : "scatter",
+      symbolSize: xm.key === "concurrency" ? 8 : 12,
+      connectNulls: true,
+      emphasis: {focus: "series"},
+      data: s.points
+        .map(p => [p[xm.key], p[ym.key], p.concurrency])
+        .filter(d => d[0] != null && d[1] != null)
+        .filter(d => (!isLog(xm) || d[0] > 0) && (!isLog(ym) || d[1] > 0)),
+    }));
+    return {
+      backgroundColor: "transparent",
+      grid: {left: 76, right: 32, top: 36, bottom: 78},
+      tooltip: {
+        trigger: "item",
+        formatter: params => {
+          const d = params.data;
+          return "<b>" + params.seriesName + "</b> · c" + d[2] +
+            "<br>" + label(xm) + ": " + d[0] +
+            "<br>" + label(ym) + ": " + d[1];
+        },
+      },
+      legend: {bottom: 0, textStyle: {color: "#9fb0c6"}},
+      xAxis: {
+        type: isLog(xm) ? "log" : "value",
+        name: label(xm),
+        nameLocation: "middle",
+        nameGap: 32,
+        axisLabel: {color: "#9fb0c6"},
+        splitLine: {lineStyle: {color: "#1d2836"}},
+      },
+      yAxis: {
+        type: isLog(ym) ? "log" : "value",
+        name: label(ym),
+        nameLocation: "middle",
+        nameGap: 52,
+        axisLabel: {color: "#9fb0c6"},
+        splitLine: {lineStyle: {color: "#1d2836"}},
+      },
+      series,
+    };
+  }
+  function render() { chart.setOption(build(), true); }
+  xs.addEventListener("change", render);
+  ys.addEventListener("change", render);
+  logEl.addEventListener("change", render);
+  window.addEventListener("resize", () => chart.resize());
+  render();
+})();
+"""
+
+
 def _timeline_options(points: list[dict]) -> dict:
     out = {}
     for p in points:
@@ -469,6 +603,9 @@ table.grid tr:hover td{background:#131d28}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
 .tab{padding:6px 12px;border-radius:999px;border:1px solid #223142;color:#9fb0c6;font-size:12px;cursor:pointer;background:#0f1620}
 .tab.active{background:#17263a;color:#dbe6f3;border-color:#2f4a68}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:2px 0 10px;color:#9fb0c6;font-size:13px}
+.controls select{background:#0f1620;color:#dbe6f3;border:1px solid #223142;border-radius:8px;padding:6px 10px;font-size:13px}
+.controls .hint{color:#6f8199;font-size:12px}
 .note{color:#8ea3bb;font-size:13px;line-height:1.8}
 footer{color:#7f90a6;font-size:12px;margin-top:24px}
 a{color:#6ea8ff;text-decoration:none}
@@ -480,6 +617,7 @@ def render_html(points: list[dict], targets: list[str], echarts_js: str) -> str:
     options = _options(points, targets)
     options["cdf"] = _cdf_options(points, targets)
     timelines = _timeline_options(points)
+    explorer = _explorer_options(points, targets)
     generated = time.strftime("%Y-%m-%d %H:%M:%S")
     table = _table(points)
     cards = _kpi_cards(points, targets)
@@ -511,6 +649,17 @@ def render_html(points: list[dict], targets: list[str], echarts_js: str) -> str:
   <div class="panel">
     <h2>汇总表</h2>
     {table}
+  </div>
+
+  <div class="panel">
+    <h2>曲线浏览器（X / Y 可切换）</h2>
+    <div class="controls">
+      <label>X 轴 <select id="x-metric"></select></label>
+      <label>Y 轴 <select id="y-metric"></select></label>
+      <label><input type="checkbox" id="log-axes" checked> 对数轴</label>
+      <span class="hint">每个点是一个并发点；X 选「并发」时按顺序连线，选其他指标时是散点（吞吐-延迟前沿），可任意组合 TTFT / ITL / E2E / 缓存。</span>
+    </div>
+    <div class="chart" id="c-explorer" style="height:460px"></div>
   </div>
 
   <div class="panel">
@@ -579,6 +728,7 @@ function show(key) {{
 }}
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => show(t.dataset.key)));
 if (keys.length) show(keys[0]);
+{EXPLORER_JS.replace("__EXPLORER__", json.dumps(explorer))}
 </script>
 </body></html>"""
 

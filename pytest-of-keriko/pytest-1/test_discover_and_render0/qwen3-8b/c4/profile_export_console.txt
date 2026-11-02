@@ -1,0 +1,1 @@
+│               Theoretical Prefix Cache Hit (%) │     95.53 │

@@ -299,3 +299,47 @@ ITL p50 = 9.5 ms，输出 35 tok/s；c=8 时 TTFT 10.2/17.6 s、ITL 44.9 ms、�
 ISL p50（44k / 96k）是轨迹切片后的窗口值，不是语料被裁。
 `--max-context 250000` 只是过滤峰值超过模型窗口的 trace，其余仍是官方 pinned 数据。
 
+## 13. 按上下文窗口跑（64K / 128K / 256K）与 SLA 自动调优
+
+AgentX 用 `--max-context-length` 过滤「峰值 prompt+output」超过窗口的 trace；本镜像把常用窗口
+做成标签，`--window 64k` 等价于 `--max-context-length 65024`（留 512 token 余量）：
+
+| 窗口 | 可用官方 trace（393 条中） | 命令 |
+|---|---|---|
+| 32K | 0（最小一条峰值 ~43k） | 不可行 |
+| 64K | 9 | `--window 64k --entries 9` |
+| 128K | 85 | `--window 128k --entries 32`（按机器内存取前 N 条） |
+| 256K | 221 | `--window 256k --entries 64` |
+| 512K | 约 300+ | `--window 512k` |
+| 1M | 393（全量） | 不加过滤，需要 ≥1M 窗口的模型 |
+
+注意：窗口越小，可用 trace 越少，且这些 trace 的 ISL 分布会被窗口“截断”成偏短样本；跨窗口比较时
+要同时看 `entries` 和 ISL，不能只比吞吐。
+
+### SLA 自动调优
+
+`tune` 子命令会自动扫并发、按 SLA 过滤、选吞吐最大的点，并写 `tune.json` / `tune.md` / `report.html`：
+
+```bash
+docker run --rm --net host -v /data/agentx/results_windows:/results \
+  -v /mnt/model:/mnt/model:ro -v /data/model:/data/model:ro \
+  ccr.ccs.tencentyun.com/keriko/agentx-offline:1.0.7-arm64 tune \
+    --url http://127.0.0.1:8080 --model qwen3.5 \
+    --tokenizer /data/model/Qwen3.5-0.8B \
+    --target qwen35-64k --window 64k \
+    --concurrency 2,4,8,16 \
+    --duration 120 --entries 9 \
+    --sla-ttft-p90 5000 --sla-itl-p50 50 --sla-min-success 99
+```
+
+或用自适应阶梯（每轮翻倍，连续 2 个点不满足 SLA / 吞吐下滑就停）：
+
+```bash
+... tune --auto --start 1 --max-concurrency 128 \
+    --window 64k --sla-ttft-p90 5000 --sla-itl-p50 50
+```
+
+判据：每个点读取官方 `profile_export_aiperf.json` 的 TTFT p90 / ITL p50 / E2E p90 / 成功率，
+全部满足才算 PASS；推荐值是 **PASS 集合里 out_tps 最大的并发**。没有 PASS 点时退回全局最大吞吐并标注。
+
+

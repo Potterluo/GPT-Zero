@@ -5,7 +5,16 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from agentx_offline.runner import build_command, parse_concurrency
+from agentx_offline.runner import (
+    auto_ladder,
+    build_command,
+    effective_max_context,
+    parse_concurrency,
+    select_best,
+    should_stop,
+    sla_failures,
+    window_tokens,
+)
 
 
 def _args(**overrides) -> argparse.Namespace:
@@ -19,6 +28,11 @@ def _args(**overrides) -> argparse.Namespace:
         entries=8,
         stats_interval=30,
         max_context=0,
+        window="",
+        sla_ttft_p90=0,
+        sla_itl_p50=0,
+        sla_e2e_p90=0,
+        sla_min_success=99.0,
         trust_remote_code=False,
         no_realtime=False,
         extra=[],
@@ -67,3 +81,48 @@ def test_max_context_passthrough() -> None:
     assert cmd[cmd.index("--max-context-length") + 1] == "130000"
     cmd_default = build_command(_args(), 4, Path("/r/c4"))
     assert "--max-context-length" not in cmd_default
+
+
+def test_window_sets_max_context() -> None:
+    assert window_tokens("64k") == 65536
+    assert window_tokens("256k") == 262144
+    args = _args(window="64k")
+    assert effective_max_context(args) == 65536 - 512
+    cmd = build_command(args, 8, Path("/r/c8"))
+    assert cmd[cmd.index("--max-context-length") + 1] == str(65536 - 512)
+
+
+def test_explicit_max_context_beats_window() -> None:
+    assert effective_max_context(_args(window="64k", max_context=60000)) == 60000
+
+
+def test_auto_ladder() -> None:
+    assert auto_ladder(1, 128) == [1, 2, 4, 8, 16, 32, 64, 128]
+    assert auto_ladder(2, 100) == [2, 4, 8, 16, 32, 64, 100]
+
+
+def test_select_best_prefers_sla() -> None:
+    rows = [
+        {"concurrency": 4, "out_tps": 100.0, "sla_ok": True},
+        {"concurrency": 8, "out_tps": 150.0, "sla_ok": False},
+    ]
+    assert select_best(rows)["concurrency"] == 4
+    assert select_best([{"concurrency": 4, "out_tps": 100.0, "sla_ok": False}])["concurrency"] == 4
+
+
+def test_should_stop_after_two_sla_failures() -> None:
+    rows = [
+        {"sla_ok": True, "out_tps": 10.0},
+        {"sla_ok": False, "out_tps": 9.0},
+        {"sla_ok": False, "out_tps": 8.0},
+    ]
+    assert should_stop(rows) is True
+    rows[2]["sla_ok"] = True
+    assert should_stop(rows) is False
+
+
+def test_sla_failures() -> None:
+    args = _args(sla_min_success=99, sla_ttft_p90=1000, sla_itl_p50=50)
+    stats = {"success_pct": 100.0, "ttft_p90": 800.0, "itl_p50": 60.0, "e2e_p90": 99999.0}
+    fails = sla_failures(stats, args)
+    assert len(fails) == 1 and "ITL" in fails[0]

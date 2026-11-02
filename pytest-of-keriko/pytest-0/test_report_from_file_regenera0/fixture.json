@@ -1,0 +1,381 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "gptzero-bench",
+    "version": "0.1.0"
+  },
+  "name": "fixture",
+  "generated_at": "2026-01-01T00:00:00+08:00",
+  "config": {
+    "url": "http://127.0.0.1:8090",
+    "model": "gpt-3.5-turbo",
+    "profiles": [
+      "coding"
+    ],
+    "profile": "coding",
+    "concurrency": [
+      2,
+      4
+    ],
+    "duration_s": 10.0,
+    "warmup": 2,
+    "seed": 42,
+    "max_tokens": null
+  },
+  "server": {
+    "url": "http://127.0.0.1:8090",
+    "config": {
+      "ttft_ms": 120.0,
+      "tpot_ms": 8.0,
+      "max_concurrency": 64
+    }
+  },
+  "points": [
+    {
+      "concurrency": 2,
+      "profile": "coding",
+      "wall_s": 10.0,
+      "requests": {
+        "total": 20,
+        "success": 20,
+        "failed": 0,
+        "failure_rate": 0.0,
+        "sub_requests": 0,
+        "tool_call_requests": 3
+      },
+      "tokens": {
+        "prompt": 100000,
+        "completion": 2000,
+        "tool_calls": 4
+      },
+      "rates": {
+        "rps": 2.0,
+        "success_rps": 1.9,
+        "input_tokens_per_s": 10000.0,
+        "output_tokens_per_s": 200.0,
+        "total_tokens_per_s": 10200.0
+      },
+      "summary": {
+        "ttft_ms": {
+          "count": 10,
+          "p50": 130,
+          "p90": 140.0,
+          "p95": 142.0,
+          "p99": 145.0,
+          "mean": 135.0,
+          "max": 150.0,
+          "min": 130
+        },
+        "tpot_ms": {
+          "count": 10,
+          "p50": 8.0,
+          "p90": 9.0,
+          "p95": 9.2,
+          "p99": 9.5,
+          "mean": 8.5,
+          "max": 10.0,
+          "min": 8.0
+        },
+        "itl_ms": {
+          "count": 10,
+          "p50": 8.0,
+          "p90": 9.0,
+          "p95": 9.2,
+          "p99": 9.5,
+          "mean": 8.5,
+          "max": 10.0,
+          "min": 8.0
+        },
+        "e2e_ms": {
+          "count": 10,
+          "p50": 630,
+          "p90": 730.0,
+          "p95": 750.0,
+          "p99": 780.0,
+          "mean": 680.0,
+          "max": 830.0,
+          "min": 630
+        }
+      },
+      "per_profile": {
+        "coding": {
+          "requests": {
+            "total": 20,
+            "success": 20,
+            "failed": 0
+          },
+          "tokens": {
+            "prompt": 100000,
+            "completion": 2000,
+            "tool_calls": 4
+          },
+          "summary": {
+            "ttft_ms": {
+              "count": 10,
+              "p50": 130,
+              "p90": 140.0,
+              "p95": 142.0,
+              "p99": 145.0,
+              "mean": 135.0,
+              "max": 150.0,
+              "min": 130
+            },
+            "tpot_ms": {
+              "count": 10,
+              "p50": 8.0,
+              "p90": 9.0,
+              "p95": 9.2,
+              "p99": 9.5,
+              "mean": 8.5,
+              "max": 10.0,
+              "min": 8.0
+            },
+            "itl_ms": {
+              "count": 10,
+              "p50": 8.0,
+              "p90": 9.0,
+              "p95": 9.2,
+              "p99": 9.5,
+              "mean": 8.5,
+              "max": 10.0,
+              "min": 8.0
+            },
+            "e2e_ms": {
+              "count": 10,
+              "p50": 630,
+              "p90": 730.0,
+              "p95": 750.0,
+              "p99": 780.0,
+              "mean": 680.0,
+              "max": 830.0,
+              "min": 630
+            }
+          },
+          "rps": 2.0,
+          "input_tokens_per_s": 10000.0,
+          "output_tokens_per_s": 200.0,
+          "samples": {
+            "ttft_ms": [
+              100.0,
+              120.0,
+              140.0
+            ],
+            "e2e_ms": [
+              500.0,
+              600.0,
+              700.0
+            ]
+          }
+        }
+      },
+      "cache": {
+        "queries_tokens": 100000.0,
+        "hit_tokens": 50000.0,
+        "hit_rate": 0.5,
+        "source": "metrics"
+      },
+      "samples": {
+        "ttft_ms": [
+          100.0,
+          120.0,
+          140.0
+        ],
+        "e2e_ms": [
+          500.0,
+          600.0,
+          700.0
+        ]
+      },
+      "errors": [],
+      "server_config": {
+        "ttft_ms": 120.0,
+        "tpot_ms": 8.0,
+        "max_concurrency": 64
+      },
+      "server_stats": {
+        "ttft_ms": {
+          "p90": 130.0
+        },
+        "e2e_ms": {
+          "p99": 900.0
+        }
+      },
+      "metrics_delta": {}
+    },
+    {
+      "concurrency": 4,
+      "profile": "coding",
+      "wall_s": 10.0,
+      "requests": {
+        "total": 20,
+        "success": 20,
+        "failed": 0,
+        "failure_rate": 0.0,
+        "sub_requests": 0,
+        "tool_call_requests": 3
+      },
+      "tokens": {
+        "prompt": 100000,
+        "completion": 2000,
+        "tool_calls": 4
+      },
+      "rates": {
+        "rps": 2.0,
+        "success_rps": 1.9,
+        "input_tokens_per_s": 10000.0,
+        "output_tokens_per_s": 200.0,
+        "total_tokens_per_s": 10200.0
+      },
+      "summary": {
+        "ttft_ms": {
+          "count": 10,
+          "p50": 140,
+          "p90": 150.0,
+          "p95": 152.0,
+          "p99": 155.0,
+          "mean": 145.0,
+          "max": 160.0,
+          "min": 140
+        },
+        "tpot_ms": {
+          "count": 10,
+          "p50": 8.0,
+          "p90": 9.0,
+          "p95": 9.2,
+          "p99": 9.5,
+          "mean": 8.5,
+          "max": 10.0,
+          "min": 8.0
+        },
+        "itl_ms": {
+          "count": 10,
+          "p50": 8.0,
+          "p90": 9.0,
+          "p95": 9.2,
+          "p99": 9.5,
+          "mean": 8.5,
+          "max": 10.0,
+          "min": 8.0
+        },
+        "e2e_ms": {
+          "count": 10,
+          "p50": 640,
+          "p90": 740.0,
+          "p95": 760.0,
+          "p99": 790.0,
+          "mean": 690.0,
+          "max": 840.0,
+          "min": 640
+        }
+      },
+      "per_profile": {
+        "coding": {
+          "requests": {
+            "total": 20,
+            "success": 20,
+            "failed": 0
+          },
+          "tokens": {
+            "prompt": 100000,
+            "completion": 2000,
+            "tool_calls": 4
+          },
+          "summary": {
+            "ttft_ms": {
+              "count": 10,
+              "p50": 140,
+              "p90": 150.0,
+              "p95": 152.0,
+              "p99": 155.0,
+              "mean": 145.0,
+              "max": 160.0,
+              "min": 140
+            },
+            "tpot_ms": {
+              "count": 10,
+              "p50": 8.0,
+              "p90": 9.0,
+              "p95": 9.2,
+              "p99": 9.5,
+              "mean": 8.5,
+              "max": 10.0,
+              "min": 8.0
+            },
+            "itl_ms": {
+              "count": 10,
+              "p50": 8.0,
+              "p90": 9.0,
+              "p95": 9.2,
+              "p99": 9.5,
+              "mean": 8.5,
+              "max": 10.0,
+              "min": 8.0
+            },
+            "e2e_ms": {
+              "count": 10,
+              "p50": 640,
+              "p90": 740.0,
+              "p95": 760.0,
+              "p99": 790.0,
+              "mean": 690.0,
+              "max": 840.0,
+              "min": 640
+            }
+          },
+          "rps": 2.0,
+          "input_tokens_per_s": 10000.0,
+          "output_tokens_per_s": 200.0,
+          "samples": {
+            "ttft_ms": [
+              100.0,
+              120.0,
+              140.0
+            ],
+            "e2e_ms": [
+              500.0,
+              600.0,
+              700.0
+            ]
+          }
+        }
+      },
+      "cache": {
+        "queries_tokens": 100000.0,
+        "hit_tokens": 50000.0,
+        "hit_rate": 0.5,
+        "source": "metrics"
+      },
+      "samples": {
+        "ttft_ms": [
+          100.0,
+          120.0,
+          140.0
+        ],
+        "e2e_ms": [
+          500.0,
+          600.0,
+          700.0
+        ]
+      },
+      "errors": [],
+      "server_config": {
+        "ttft_ms": 120.0,
+        "tpot_ms": 8.0,
+        "max_concurrency": 64
+      },
+      "server_stats": {
+        "ttft_ms": {
+          "p90": 130.0
+        },
+        "e2e_ms": {
+          "p99": 900.0
+        }
+      },
+      "metrics_delta": {}
+    }
+  ],
+  "charts": [],
+  "notes": [
+    "fixture note"
+  ]
+}

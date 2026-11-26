@@ -87,7 +87,8 @@ jobs:
           assert "gptzero/dashboard.html" in names, f"dashboard.html missing from {wheel}"
           assert "gptzero/protocols.py" in names, "protocols.py missing"
           assert any(n.startswith("gptzero/cli.py") for n in names), "cli.py missing"
-          assert any(n.startswith("bench/")) and not any(n.startswith("agentx")), "bench 包不完整或混入 agentx"
+          assert any(n.startswith("bench/") for n in names), "bench 包不完整"
+          assert not any(n.startswith("agentx/") for n in names), "混入 agentx"
           dist_info = [n for n in names if n.endswith(".dist-info/entry_points.txt")]
           assert dist_info, "entry_points.txt missing"
           print(f"OK: {wheel} ({len(names)} files)\nentry_points:\n{zf.read(dist_info[0]).decode()}")
@@ -204,11 +205,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 合并两架构并打 tag（v<version> + latest）
+        # build-push-action 的 digest 输出自带 sha256: 前缀，直接拼 @ 即可
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           docker buildx imagetools create \
             -t "${IMAGE}:${VERSION}" \
             -t "${IMAGE}:latest" \
-            "${IMAGE}@sha256:${{ needs.docker-amd64.outputs.digest }}" \
-            "${IMAGE}@sha256:${{ needs.docker-arm64.outputs.digest }}"
+            "${IMAGE}@${{ needs.docker-amd64.outputs.digest }}" \
+            "${IMAGE}@${{ needs.docker-arm64.outputs.digest }}"
           docker buildx imagetools inspect "${IMAGE}:${VERSION}"

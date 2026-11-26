@@ -349,7 +349,14 @@ class MockEngine:
         cache_outcome = self.cache.observe(prompt_ids, prompt_tokens)
         self.cache.hits += cache_outcome.hit_tokens
 
-        rng = random.Random((seed if seed is not None else cfg.seed) ^ hash((model, prompt_tokens)))
+        # Deterministic across processes: str hash() is randomized per
+        # interpreter (PYTHONHASHSEED), which would silently change the filler
+        # stream between runs. A stable digest of (model, prompt_tokens) keeps
+        # "same request + same seed -> same output" true everywhere.
+        seed_digest = hashlib.blake2b(
+            f"{model}:{prompt_tokens}".encode("utf-8"), digest_size=8
+        ).digest()
+        rng = random.Random((seed if seed is not None else cfg.seed) ^ int.from_bytes(seed_digest, "big"))
         ttft_s = self.latency.ttft(prompt_tokens, cache_outcome.hit_tokens, rng)
 
         # Tool-call turn?  A tool result is always answered with plain text so

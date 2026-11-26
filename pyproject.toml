@@ -3,7 +3,7 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gpt-zero"
+name = "openai-mock"
 dynamic = ["version"]
 description = "Offline multi-protocol mock LLM server (OpenAI Chat Completions / Responses / Anthropic Messages) for agentic benchmarks"
 readme = "README.md"

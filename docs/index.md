@@ -11,7 +11,7 @@ title: GPT-Zero · 纯离线多协议 Mock LLM
 > 协议适配形态参考 [deepseek-recipe](https://github.com/deepseek-ai/deepseek-recipe)（只取协议转换思路，不做 tokenizer 转换）。
 
 [![CI](https://github.com/Potterluo/GPT-Zero/actions/workflows/ci.yml/badge.svg)](https://github.com/Potterluo/GPT-Zero/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/gpt-zero)](https://pypi.org/project/gpt-zero/)
+[![PyPI](https://img.shields.io/pypi/v/openai-mock)](https://pypi.org/project/openai-mock/)
 [![Docker (GHCR)](https://img.shields.io/badge/ghcr.io-potterluo%2Fgpt--zero-blue)](https://github.com/Potterluo/GPT-Zero/pkgs/container/gpt-zero)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/Potterluo/GPT-Zero/blob/main/LICENSE)
 
@@ -30,7 +30,7 @@ title: GPT-Zero · 纯离线多协议 Mock LLM
 === "pip 安装"
 
     ```bash
-    pip install gpt-zero
+    pip install openai-mock
     gptzero --port 8090 --tokenizer deepseek_v3_tokenizer
     # 或从源码
     pip install -e ".[dev]"

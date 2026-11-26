@@ -1,6 +1,6 @@
 # 发布流程（RELEASE）
 
-> 一次 tag push 同时产出三样东西：**PyPI 包**（`gpt-zero`）、**GHCR 多架构镜像**（amd64 + arm64）、
+> 一次 tag push 同时产出三样东西：**PyPI 包**（`openai-mock`）、**GHCR 多架构镜像**（amd64 + arm64）、
 > 以及 **GitHub Pages 文档站**（pages.yml 独立触发）。所有发布动作由
 > [.github/workflows/release.yml](../.github/workflows/release.yml) 完成。
 
@@ -26,7 +26,7 @@ push main
 
 | 产物 | 地址 | 触发 |
 |---|---|---|
-| PyPI 包 | <https://pypi.org/project/gpt-zero/> | tag `v*` |
+| PyPI 包 | <https://pypi.org/project/openai-mock/> | tag `v*` |
 | GHCR 镜像 | `ghcr.io/potterluo/gpt-zero:{版本,latest}` | tag `v*` |
 | 文档站 | <https://potterluo.github.io/GPT-Zero/> | push main / 手动 |
 
@@ -46,7 +46,7 @@ git push origin v4.0.0
 发布后验证：
 
 ```bash
-pip install gpt-zero==4.0.0 && gptzero --port 8090      # PyPI 包可装可跑
+pip install openai-mock==4.0.0 && gptzero --port 8090      # PyPI 包可装可跑
 docker pull ghcr.io/potterluo/gpt-zero:4.0.0             # 多架构 manifest（docker inspect 可见 amd64+arm64）
 ```
 
@@ -65,7 +65,7 @@ docker pull ghcr.io/potterluo/gpt-zero:4.0.0             # 多架构 manifest（
 
 | 字段 | 值 |
 |---|---|
-| PyPI project name | `gpt-zero` |
+| PyPI project name | `openai-mock` |
 | Owner | `Potterluo` |
 | Repository | `GPT-Zero` |
 | Workflow filename | `release.yml` |
@@ -85,7 +85,8 @@ docker pull ghcr.io/potterluo/gpt-zero:4.0.0             # 多架构 manifest（
 
 ## 4. 产物细节
 
-- **包名**：PyPI 分发名 `gpt-zero`（import 名仍是 `gptzero`；PyPI 的 `gptzero` 已被无关项目占用）。
+- **包名**：PyPI 分发名 `openai-mock`（import 名仍是 `gptzero`）。历史：曾用 `gpt-zero`，因与已被占用的
+  `gptzero` 过于相似被 PyPI 拒绝，改用 `openai-mock`；Trusted Publishing 的 project name 必须与之一致。
 - **版本自检**：release.yml 的 verify job 要求 tag（去 `v` 前缀）等于 `gptzero.__version__`，
   不一致直接 fail，杜绝「tag 是 v4.0.1、包还是 4.0.0」的错位发布。
 - **wheel 自检**：dashboard.html / protocols.py / entry_points 必须在包里，bench 包完整且不混入 agentx。

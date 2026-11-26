@@ -1,7 +1,7 @@
 # GPT-Zero · offline multi-protocol mock LLM
 
 [![CI](https://github.com/Potterluo/GPT-Zero/actions/workflows/ci.yml/badge.svg)](https://github.com/Potterluo/GPT-Zero/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/gpt-zero)](https://pypi.org/project/gpt-zero/)
+[![PyPI](https://img.shields.io/pypi/v/openai-mock)](https://pypi.org/project/openai-mock/)
 [![Docker (GHCR)](https://img.shields.io/badge/ghcr.io-potterluo%2Fgpt--zero-blue)](https://github.com/Potterluo/GPT-Zero/pkgs/container/gpt-zero)
 [![Docs](https://img.shields.io/badge/docs-GitHub_Pages-blue)](https://potterluo.github.io/GPT-Zero/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
@@ -42,10 +42,10 @@
 
 === 三种安装方式
 
-**pip**（PyPI 包名 `gpt-zero`，import 名仍是 `gptzero`）：
+**pip**（PyPI 包名 `openai-mock`，import 名仍是 `gptzero`）：
 
 ```bash
-pip install gpt-zero
+pip install openai-mock
 gptzero --port 8090 --tokenizer deepseek_v3_tokenizer
 ```
 
@@ -205,7 +205,7 @@ docker run --rm --network none -v %cd%/results:/app/results gptzero:v4 bench swe
 
 | 产物 | 触发 | 地址 |
 |---|---|---|
-| PyPI 包 `gpt-zero` | `git tag v4.0.1 && git push origin v4.0.1` | [pypi.org/project/gpt-zero](https://pypi.org/project/gpt-zero/) |
+| PyPI 包 `openai-mock` | `git tag v4.0.1 && git push origin v4.0.1` | [pypi.org/project/openai-mock](https://pypi.org/project/openai-mock/) |
 | GHCR 镜像 `:版本` + `:latest`（amd64/arm64） | 同上 | `ghcr.io/potterluo/gpt-zero` |
 | 文档站（mkdocs-material） | push main / 手动触发 | [potterluo.github.io/GPT-Zero](https://potterluo.github.io/GPT-Zero/) |
 

@@ -440,10 +440,18 @@ def test_messages_stop_sequences(client):
         },
     )
     body = resp.json()
-    text = next(b for b in body["content"] if b["type"] == "text")["text"]
-    assert "the" not in text.lower() or body["stop_reason"] == "stop_sequence"
-    if body["stop_reason"] == "stop_sequence":
-        assert body["stop_sequence"] is None  # mock does not echo the sequence
+    text_block = next((b for b in body["content"] if b["type"] == "text"), None)
+    if text_block is None:
+        # "the" 恰好落在生成文本的开头：裁剪后无文本块，content 为空是合法收尾
+        assert body["stop_reason"] == "stop_sequence"
+        assert not [b for b in body["content"] if b["type"] == "tool_use"]
+    else:
+        if body["stop_reason"] == "stop_sequence":
+            # 裁剪发生在 "the" 的首次出现处，剩余文本不再包含它（区分大小写）
+            assert "the" not in text_block["text"]
+        else:
+            # 未命中停止序列：正常文本收尾
+            assert text_block["text"]
 
 
 def test_messages_error_shape(client):

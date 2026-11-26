@@ -2,7 +2,7 @@
 
 > 一次 tag push 同时产出三样东西：**PyPI 包**（`openai-mock`）、**GHCR 多架构镜像**（amd64 + arm64）、
 > 以及 **GitHub Pages 文档站**（pages.yml 独立触发）。所有发布动作由
-> [.github/workflows/release.yml](../.github/workflows/release.yml) 完成。
+> [release.yml](https://github.com/Potterluo/GPT-Zero/blob/main/.github/workflows/release.yml) 完成。
 
 ## 1. 链路总览
 

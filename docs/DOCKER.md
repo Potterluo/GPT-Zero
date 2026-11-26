@@ -14,7 +14,7 @@
 | `gptzero` 包（服务核心） | `/app/gptzero` | FastAPI + uvicorn，OpenAI/Anthropic 兼容，`--network none` 可跑 |
 | `server.py` | `/app/server.py` | 兼容入口（等价 `python -m gptzero`） |
 | `bench/` | `/app/bench` | 闭环压测 harness |
-| 本地 tokenizer | `/app/deepseek_v3_tokenizer` | 可选精确计数（需 `--build-arg WITH_TRANSFORMERS=1`） |
+| 包内 tokenizer | `/app/gptzero/tokenizer` + `tokenizers` 库 | v4 起 runtime 依赖自带，镜像默认即**精确计数**（`WITH_TRANSFORMERS=1` 仅对需要 transformers 的 tokenizer 格式才有意义） |
 | 运行期依赖 | 系统 site-packages | fastapi / uvicorn / pydantic / httpx / numpy / matplotlib / pytest |
 | 入口脚本 | `/app/docker/entrypoint.sh` | `mock|bench|smoke|shell|pytest` 子命令 |
 | 请求日志卷 | `/data/requests.jsonl` | compose 挂 `./data`，容器重建不丢 |

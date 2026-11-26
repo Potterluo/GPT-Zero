@@ -26,8 +26,9 @@ Prometheus 指标、统计面板、自带 benchmark harness（出表 + 出图）
 - 项目 venv：`.venv`（Python 3.11，已装 fastapi/uvicorn/pydantic/httpx/matplotlib/numpy/pytest）。
 - 解释器：`D:\Vibe_Workspace\GPT-Zero\.venv\Scripts\python.exe`
 - 依赖清单以 `pyproject.toml` 为准；不要引入需要联网运行时的依赖。
-- 只可依赖：fastapi, uvicorn, pydantic, httpx, numpy, matplotlib（bench 图表）, pytest。
-  `transformers` 可选（本地 tokenizer 存在时启用，缺失自动降级），不作为硬依赖。
+- 只可依赖：fastapi, uvicorn, pydantic, tokenizers（v4 起硬依赖：包内内置
+  `gptzero/tokenizer/`，pip 安装即得精确计数）, httpx, numpy, matplotlib（bench 图表）, pytest。
+  `transformers` 可选（仅 `--tokenizer` 指向非 tokenizer.json 格式时需要），不作为硬依赖。
 
 ## 3. 服务端 HTTP 契约（`gptzero`，默认端口 8080；本机实测统一用 **8090**）
 

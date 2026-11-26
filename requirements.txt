@@ -4,7 +4,7 @@ fastapi>=0.109
 uvicorn>=0.20
 pydantic>=2.5
 
-# Optional: exact token counting from a local tokenizer.json (offline).
-# The repo ships deepseek_v3_tokenizer/; without this dependency the server
-# falls back to a deterministic heuristic codec.
-tokenizers>=0.15
+# Exact token counting: tokenizers is a hard dependency since v4.0.0+ — the
+# wheel bundles a copy of the DeepSeek-V3 tokenizer in gptzero/tokenizer/, so
+# `pip install openai-mock` gets exact counts out of the box (offline).
+tokenizers>=0.19

@@ -5,6 +5,9 @@
 fastapi==0.115.6
 uvicorn==0.32.1
 pydantic==2.10.4
+# tokenizers 是 pyproject 的硬依赖（PR #2 起包内内置 tokenizer，gptzero/tokenizer/），
+# 镜像内 --tokenizer auto 即得精确计数，无需 WITH_TRANSFORMERS=1
+tokenizers==0.23.3
 httpx==0.28.1
 numpy==2.1.3
 matplotlib==3.9.3

@@ -29,3 +29,6 @@ Thumbs.db
 .vscode/
 .idea/
 
+
+# pytest 临时目录（部分测试在 CWD 下生成）
+pytest-of-keriko/

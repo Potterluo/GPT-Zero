@@ -46,8 +46,11 @@
 
 ```bash
 pip install openai-mock
-gptzero --port 8090 --tokenizer deepseek_v3_tokenizer
+gptzero --port 8090
 ```
+
+pip 安装自带包内内置 tokenizer（DeepSeek-V3，`gptzero/tokenizer/`），`--tokenizer auto`
+开箱即得**精确** token 计数；显式路径（如 `--tokenizer deepseek_v3_tokenizer`）仍然可用。
 
 **Docker**（GHCR 多架构镜像，amd64/arm64）：
 
@@ -88,7 +91,7 @@ curl -X POST http://127.0.0.1:8090/v1/chat/completions \
 | `--max-concurrency` | 64 | 同时在处理的请求数，超出排队（排队时间计入 TTFT） |
 | `--cache-blocks` / `--block-size` | 8192 / 64 | prefix cache 容量与块大小 |
 | `--tool-call-ratio` | 0.6 | 带 tools 的轮次触发工具调用的概率 |
-| `--tokenizer` | auto | `auto` 找仓库内 `deepseek_v3_tokenizer/`，否则 heuristic |
+| `--tokenizer` | auto | `auto` 依次找：仓库内 `deepseek_v3_tokenizer/` → CWD → 包内内置（pip 安装自带），都缺才退 heuristic |
 | `--log-file` | 空 | 每请求 JSONL 落盘 |
 
 所有参数支持 `GPTZERO_*` 环境变量（如 `GPTZERO_PORT=8090`），CLI 优先。

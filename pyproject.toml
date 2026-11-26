@@ -17,6 +17,10 @@ dependencies = [
   "fastapi>=0.109",
   "uvicorn>=0.20",
   "pydantic>=2.5",
+  # token 计数的精确实现（HFTokenCodec 首选运行时，Rust wheel、无 torch）。
+  # 配套包内内置 tokenizer（gptzero/tokenizer/，即仓库根 deepseek_v3_tokenizer 的副本），
+  # 让 `pip install openai-mock` 开箱即得精确 token 计数，而无需仓库 checkout。
+  "tokenizers>=0.19",
 ]
 
 [project.urls]
@@ -50,7 +54,10 @@ where = ["."]
 include = ["gptzero*", "bench*"]
 
 [tool.setuptools.package-data]
-gptzero = ["dashboard.html"]
+# tokenizer/ 是仓库根 deepseek_v3_tokenizer/ 的副本（tokenizer.py 的 _candidate_paths
+# 已把 gptzero/tokenizer/ 作为 auto 的最后一个候选）：打包进 wheel 后，pip 安装的用户
+# 不需要仓库 checkout 就有精确 token 计数（纯离线，不下载任何东西）。
+gptzero = ["dashboard.html", "tokenizer/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

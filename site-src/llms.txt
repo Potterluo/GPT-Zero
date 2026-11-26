@@ -1,0 +1,30 @@
+# GPT-Zero
+
+> 纯离线的多协议 Mock LLM 推理服务。一套引擎同时支持 OpenAI Chat Completions（POST /v1/chat/completions）、OpenAI Responses（POST /v1/responses）与 Anthropic Messages（POST /v1/messages）三种调用形式，JSON 与 SSE 流式均按官方事件序返回，并在每个协议上提供 fake 工具调用。它不是模型、不产生有意义的回答，而是复现推理服务在 agentic 负载下的可观测行为——精确 token 计数、TTFT/TPOT 延迟、排队、64-token 块前缀缓存命中、流式工具调用帧与成功率——用于在没有 GPU 的环境里压测与回归推理栈、网关、调度器和监控面板。
+
+安装：`pip install openai-mock`（import 名为 `gptzero`），运行 `gptzero --port 8090`；或 `docker run --rm -p 8090:8090 ghcr.io/potterluo/gpt-zero:latest`（amd64/arm64 双架构）。把 OpenAI SDK 的 base_url 指向 `http://127.0.0.1:8090/v1`，或把 Anthropic 客户端的 base_url 指向 `http://127.0.0.1:8090` 即可调用。
+
+关键事实：
+
+- 三协议 JSON（stream=false）与 SSE（stream=true）双模式，流式事件序与官方一致。
+- fake 工具调用按协议原生形态输出：Chat 用 `delta.tool_calls` 参数分片；Responses 用 `function_call` 条目 + `function_call_arguments.delta`；Anthropic 用 `tool_use` 块（toolu_* id）+ `input_json_delta`。参数按 tools 的 JSON Schema 合成，分片拼接即合法 JSON。
+- `tool_choice` 语义三协议互通（required / 指定函数 / any 强制调用，none 禁用）；工具结果回填后返回普通文本收尾，agent 循环正常终止。
+- OpenAI Responses 支持 `GET /v1/responses/{id}` 与 `previous_response_id` 服务端链式多轮。
+- 精确 token 计数（仓库自带 deepseek_v3_tokenizer，缺失时启发式回退）；输出严格等于 max_tokens；同 seed 可复现。
+- 64-token 块前缀缓存（blake2b 块哈希 + trie 匹配 + LRU 序列淘汰）；vLLM 命名 Prometheus 指标（/metrics）+ /api/stats 分位数（p50/p90/p99）。
+- TTFT = prefill（未命中 token 数）+ 排队 + 抖动；`--max-concurrency` 制造排队以复现容量拐点。
+- 闭环压测：`python -m bench sweep`，chat/coding/agentic/longctx 四种 profile，产出 MD/CSV/PNG/SVG。
+- Apache-2.0 开源，完全免费；PyPI 分发名 `openai-mock`（曾用名 gpt-zero 因与已占用的 gptzero 相似被拒）。
+
+## 文档
+
+- [架构与实现](https://potterluo.github.io/GPT-Zero/docs/ARCHITECTURE/): 协议适配层（protocols.py）、MockEngine、前缀缓存模拟、延迟模型、指标口径、多协议 SSE 帧蓝图。
+- [压测与指标](https://potterluo.github.io/GPT-Zero/docs/BENCHMARK/): bench harness 设计、工作负载 profile、TTFT/ITL/TPOT/E2E 定义、图表读法。
+- [Docker 离线镜像](https://potterluo.github.io/GPT-Zero/docs/DOCKER.md): 镜像构建、运行期零网络证明、smoke 自检、compose 用法。
+- [发布流程](https://potterluo.github.io/GPT-Zero/docs/RELEASE.md): tag 触发的 PyPI（openai-mock）/ GHCR 多架构镜像 / Pages 发布链路与一次性配置。
+
+## 仓库与产物
+
+- [GitHub 仓库](https://github.com/Potterluo/GPT-Zero): 源码、README、压测结果与图表。
+- [PyPI · openai-mock](https://pypi.org/project/openai-mock/): `pip install openai-mock`。
+- [GHCR 镜像](https://github.com/Potterluo/GPT-Zero/pkgs/container/gpt-zero): `ghcr.io/potterluo/gpt-zero:{版本,latest}`，amd64 + arm64。

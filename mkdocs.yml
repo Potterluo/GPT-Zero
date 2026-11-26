@@ -1,8 +1,9 @@
 # GPT-Zero 文档站点配置（GitHub Pages，由 .github/workflows/pages.yml 构建）
+# 落地页（corporate-clean，site-src/）在站点根路径；mkdocs 文档输出到 /docs/ 子路径。
 site_name: GPT-Zero
 site_description: 纯离线多协议 Mock LLM 服务（OpenAI Chat Completions / Responses / Anthropic Messages）
 site_author: GPT-Zero Contributors
-site_url: https://potterluo.github.io/GPT-Zero/
+site_url: https://potterluo.github.io/GPT-Zero/docs/
 repo_url: https://github.com/Potterluo/GPT-Zero
 repo_name: Potterluo/GPT-Zero
 edit_uri: edit/main/docs/
@@ -33,7 +34,7 @@ theme:
     repo: fontawesome/brands/github
 
 nav:
-  - 首页: index.md
+  - 文档总览: index.md
   - 架构与实现: ARCHITECTURE.md
   - 压测与指标: BENCHMARK.md
   - Docker 离线镜像: DOCKER.md

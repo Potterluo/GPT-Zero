@@ -1,6 +1,6 @@
 name: pages
 
-# GitHub Pages 文档站：mkdocs-material 构建并部署（Source 必须是 "GitHub Actions"）
+# GitHub Pages 站点：企业简洁风落地页（site-src/，SEO + GEO）+ mkdocs 文档（/docs/ 子路径）
 #   仓库 Settings → Pages → Build and deployment → Source: GitHub Actions（一次性配置）
 on:
   push:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: build mkdocs site
+    name: build site (landing + docs)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,11 +30,29 @@ jobs:
       - name: 安装 mkdocs-material
         run: pip install mkdocs-material
 
-      - name: 构建站点（strict：链接/警告视为错误）
-        run: mkdocs build --strict --site-dir site
+      - name: 构建 mkdocs 文档（strict，输出到 site-docs/）
+        run: mkdocs build --strict --site-dir site-docs
 
-      - name: 站点体积
-        run: du -sh site
+      - name: 组装站点（落地页在根路径，文档在 /docs/ 子路径）
+        run: |
+          mkdir -p site/docs
+          cp -r site-src/. site/
+          cp -r site-docs/. site/docs/
+          echo "-- site root --"
+          ls site
+          echo "-- site/docs --"
+          ls site/docs | head -20
+
+      - name: SEO/GEO 自检（关键文件与标记必须在产物里）
+        run: |
+          set -e
+          grep -q 'application/ld+json' site/index.html
+          grep -q 'name="description"' site/index.html
+          grep -q 'rel="canonical"' site/index.html
+          test -f site/llms.txt
+          test -f site/sitemap.xml
+          grep -q 'potterluo.github.io/GPT-Zero/docs/' site/sitemap.xml
+          echo "SEO/GEO self-check OK"
 
       - uses: actions/upload-pages-artifact@v3
         with:

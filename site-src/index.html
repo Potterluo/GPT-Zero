@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPT-Zero · 离线多协议 Mock LLM 服务（OpenAI Chat Completions / Responses / Anthropic Messages）</title>
+<meta name="description" content="GPT-Zero（gptzero）是一个纯离线的多协议 Mock LLM 推理服务：一套引擎同时支持 OpenAI Chat Completions、OpenAI Responses 与 Anthropic Messages 三种调用形式，流式与 fake 工具调用都能正确返回，内置精确 token 计数、64-token 块前缀缓存、vLLM 风格 Prometheus 指标与闭环压测 harness。">
+<link rel="canonical" href="https://potterluo.github.io/GPT-Zero/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="GPT-Zero Contributors">
+<meta name="theme-color" content="#1e40af">
+<link rel="sitemap" type="application/xml" href="sitemap.xml">
+<link rel="llms-txt" href="llms.txt" title="llms.txt: 给 LLM/回答引擎的站点摘要">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GPT-Zero">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:url" content="https://potterluo.github.io/GPT-Zero/">
+<meta property="og:title" content="GPT-Zero · 离线多协议 Mock LLM 服务">
+<meta property="og:description" content="一套引擎同时支持 OpenAI Chat Completions、OpenAI Responses 与 Anthropic Messages 三种调用形式，流式与 fake 工具调用都能正确返回。纯离线、无 GPU、开箱即用的压测与指标。">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GPT-Zero · 离线多协议 Mock LLM 服务">
+<meta name="twitter:description" content="纯离线 Mock 推理服务：三协议（OpenAI / Anthropic）、fake 工具调用、精确 token 计数、前缀缓存、Prometheus 指标与闭环压测。">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "GPT-Zero",
+      "alternateName": ["gptzero", "openai-mock"],
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, Windows, macOS, Docker",
+      "url": "https://potterluo.github.io/GPT-Zero/",
+      "codeRepository": "https://github.com/Potterluo/GPT-Zero",
+      "description": "纯离线的多协议 Mock LLM 推理服务。一套引擎同时支持 OpenAI Chat Completions（POST /v1/chat/completions）、OpenAI Responses（POST /v1/responses）与 Anthropic Messages（POST /v1/messages）三种调用形式，JSON 与 SSE 流式均按官方事件序返回，并在每个协议上提供 fake 工具调用。内置确定性 filler 输出与精确 token 计数、64-token 块前缀缓存、TTFT/TPOT 延迟模型、vLLM 命名 Prometheus 指标与闭环压测 harness，用于在没有 GPU 的环境下压测和回归推理栈、网关、调度器与监控面板。",
+      "softwareVersion": "4.0.0",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": { "@type": "Organization", "name": "GPT-Zero Contributors" },
+      "keywords": "mock llm, openai mock server, anthropic messages mock, responses api mock, fake tool calls, prefix cache, benchmark, offline",
+      "featureList": "OpenAI Chat Completions API mock;OpenAI Responses API mock with previous_response_id;Anthropic Messages API mock;fake tool calls with streaming argument fragments;exact token counting;64-token block prefix cache with LRU eviction;TTFT/TPOT latency model with queueing;vLLM-style Prometheus metrics;closed-loop benchmark harness"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "GPT-Zero 是什么？",
+          "acceptedAnswer": { "@type": "Answer", "text": "GPT-Zero（pip 包名 openai-mock，Python 包名 gptzero）是一个纯离线的多协议 Mock LLM 推理服务。它不是模型、不产生有意义的回答，而是复现推理服务在 agentic 负载下的可观测行为：精确 token 计数、TTFT/TPOT 延迟、排队、前缀缓存命中、流式工具调用帧与成功率，用于在没有 GPU 的环境里压测与回归推理栈、网关、调度器和监控面板。" } },
+        { "@type": "Question", "name": "GPT-Zero 支持哪些 API 协议？",
+          "acceptedAnswer": { "@type": "Answer", "text": "三套协议共用同一引擎：OpenAI Chat Completions（POST /v1/chat/completions）、OpenAI Responses（POST /v1/responses，支持 GET /v1/responses/{id} 与 previous_response_id 链式多轮）、Anthropic Messages（POST /v1/messages）。三者都提供 JSON（stream=false）与 SSE 流式（stream=true）两种返回，并保留旧版 POST /v1/completions 文本补全。" } },
+        { "@type": "Question", "name": "fake 工具调用是怎么实现的？",
+          "acceptedAnswer": { "@type": "Answer", "text": "服务端按请求里的 tools JSON Schema 合成参数合法的工具调用，并按各协议的原生流式形态输出：Chat Completions 用 delta.tool_calls 参数分片，Responses 用 function_call 条目与 function_call_arguments.delta 事件，Anthropic Messages 用 tool_use 块（toolu_* id）与 input_json_delta 事件。把工具结果回填后再请求会得到普通文本收尾，agent 循环可正常终止。tool_choice 的语义在三个协议间互通。" } },
+        { "@type": "Question", "name": "token 计数准确吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "准确。仓库自带 deepseek_v3_tokenizer 时按真实 tokenizer 精确计数，输出严格等于请求的 max_tokens；没有 tokenizer 时回退到确定性启发式计数。两种模式下同一请求可复现（seed 固定）。" } },
+        { "@type": "Question", "name": "GPT-Zero 怎么安装和使用？",
+          "acceptedAnswer": { "@type": "Answer", "text": "pip install openai-mock 后运行 gptzero --port 8090；或 docker run --rm -p 8090:8090 ghcr.io/potterluo/gpt-zero:latest（amd64 与 arm64 双架构）。把 OpenAI SDK 的 base_url 指向 http://127.0.0.1:8090/v1，或把 Anthropic 客户端的 base_url 指向 http://127.0.0.1:8090 即可开始调用。" } },
+        { "@type": "Question", "name": "GPT-Zero 开源协议与收费？",
+          "acceptedAnswer": { "@type": "Answer", "text": "Apache-2.0 开源，完全免费。协议适配形态参考 deepseek-recipe（MIT）的协议转换思路。" } }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+:root {
+  --corporate-blue: #1e40af;
+  --corporate-blue-deep: #163790;
+  --action-blue: #3b82f6;
+  --slate-mist: #f8fafc;
+  --slate: #64748b;
+  --ink: #0f172a;
+  --confirm-green: #10b981;
+  --border: #e5e7eb;
+  --radius-card: 12px;
+  --radius-btn: 8px;
+  --shadow-rest: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --focus-ring: 0 0 0 2px #f8fafc, 0 0 0 4px #3b82f6;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Code", Consolas, "JetBrains Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--slate-mist);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { line-height: 1.25; }
+a { color: var(--corporate-blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-btn); }
+.container { max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+.section { padding: 96px 0; }
+.section.alt { background: #fff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.kicker {
+  display: inline-block; font-size: 12px; font-weight: 500; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--corporate-blue);
+  background: #eff6ff; border-radius: 999px; padding: 4px 12px;
+}
+.section h2 { font-size: 30px; font-weight: 600; letter-spacing: -0.01em; margin: 12px 0 8px; }
+.section .lede { color: var(--slate); font-size: 18px; margin: 0 0 40px; max-width: 70ch; }
+
+/* ---------- top nav ---------- */
+.topnav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.topnav .inner { height: 64px; display: flex; align-items: center; gap: 24px; }
+.brand { font-size: 18px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+.brand:hover { text-decoration: none; }
+.brand .logo {
+  width: 28px; height: 28px; border-radius: 8px; background: var(--corporate-blue);
+  color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.topnav nav { display: flex; gap: 24px; margin-left: auto; align-items: center; }
+.topnav nav a { font-size: 14px; font-weight: 500; color: var(--slate); }
+.topnav nav a:hover { color: var(--ink); text-decoration: none; transform: translateY(-1px); }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--corporate-blue); color: #fff; border: none; cursor: pointer;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  padding: 8px 16px; border-radius: var(--radius-btn);
+  box-shadow: var(--shadow-rest); text-decoration: none;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, background 150ms ease-out;
+}
+.btn:hover { background: var(--corporate-blue-deep); transform: translateY(-2px); box-shadow: var(--shadow-hover); text-decoration: none; color: #fff; }
+.btn:active { transform: scale(0.98); }
+.btn.ghost { background: #fff; color: var(--corporate-blue); border: 1px solid var(--border); }
+.btn.ghost:hover { background: var(--slate-mist); }
+
+/* ---------- hero ---------- */
+.hero { padding: 96px 0 64px; text-align: center; }
+.hero h1 { font-size: clamp(38px, 6vw, 60px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin: 20px 0 16px; }
+.hero h1 .accent { color: var(--corporate-blue); }
+.hero .sub { font-size: 18px; color: var(--slate); max-width: 62ch; margin: 0 auto 32px; }
+.hero .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+.hero .meta { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px;
+  font-size: 12px; font-weight: 500; padding: 4px 10px;
+  background: #fff; border: 1px solid var(--border); color: var(--slate);
+}
+.badge .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--confirm-green); }
+.badge.blue { background: #eff6ff; border-color: #dbeafe; color: var(--corporate-blue); }
+
+/* ---------- stats strip ---------- */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.stat { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-rest); }
+.stat b { display: block; font-size: 36px; font-weight: 700; letter-spacing: -0.01em; color: var(--corporate-blue); }
+.stat span { font-size: 14px; color: var(--slate); }
+
+/* ---------- cards ---------- */
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.card {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+  padding: 24px; box-shadow: var(--shadow-rest);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.card .icon {
+  width: 40px; height: 40px; border-radius: 12px; background: #eff6ff;
+  display: grid; place-items: center; margin-bottom: 16px;
+  transition: background 150ms ease-out, transform 150ms ease-out;
+}
+.card:hover .icon { background: var(--corporate-blue); transform: scale(1.1); }
+.card:hover .icon svg { stroke: #fff; }
+.card .icon svg { width: 20px; height: 20px; stroke: var(--corporate-blue); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: stroke 150ms ease-out; }
+.card h3 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+.card p { font-size: 14px; color: var(--slate); margin: 0 0 12px; }
+.card .endpoint { font-family: var(--mono); font-size: 13px; color: var(--corporate-blue); background: var(--slate-mist); border: 1px solid var(--border); border-radius: var(--radius-btn); padding: 4px 10px; display: inline-block; }
+.card ul { margin: 12px 0 0; padding-left: 18px; color: var(--slate); font-size: 14px; }
+.card ul li { margin: 4px 0; }
+.card ul li b { color: var(--ink); font-weight: 500; }
+
+/* ---------- quickstart tabs ---------- */
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+  padding: 8px 16px; border-radius: var(--radius-btn);
+  background: #fff; color: var(--slate); border: 1px solid var(--border);
+  transition: all 150ms ease-out;
+}
+.tab[aria-selected="true"] { background: var(--corporate-blue); color: #fff; border-color: var(--corporate-blue); box-shadow: var(--shadow-rest); }
+.tab:not([aria-selected="true"]):hover { color: var(--ink); transform: translateY(-1px); }
+.panel {
+  display: none; background: #0f172a; color: #e2e8f0; border-radius: var(--radius-card);
+  padding: 24px; font-family: var(--mono); font-size: 14px; line-height: 1.7;
+  box-shadow: var(--shadow-rest); text-align: left; overflow-x: auto;
+}
+.panel.active { display: block; }
+.panel .c { color: #64748b; }
+.panel .p { color: #7dd3fc; }
+
+/* ---------- bench table ---------- */
+.table-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-rest); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+thead th { background: var(--slate-mist); font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--slate); }
+tbody tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td .good { color: var(--confirm-green); font-weight: 500; }
+td .warn { color: #d97706; font-weight: 500; }
+.tbl-note { font-size: 13px; color: var(--slate); margin-top: 12px; }
+
+/* ---------- faq ---------- */
+.faq { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.faq-item { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-rest); }
+.faq-item h3 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+.faq-item p { margin: 0; font-size: 14px; color: var(--slate); }
+.faq-item code { font-family: var(--mono); font-size: 13px; background: var(--slate-mist); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; color: var(--corporate-blue); }
+
+/* ---------- cta ---------- */
+.cta-band {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-rest); padding: 48px; text-align: center;
+}
+.cta-band h2 { margin: 0 0 8px; }
+.cta-band p { color: var(--slate); margin: 0 0 24px; }
+
+/* ---------- footer ---------- */
+footer { border-top: 1px solid var(--border); background: #fff; padding: 32px 0; }
+footer .inner { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 14px; color: var(--slate); }
+footer a { color: var(--slate); }
+footer a:hover { color: var(--corporate-blue); }
+
+@media (max-width: 900px) {
+  .grid-3, .grid-2, .stats, .faq { grid-template-columns: 1fr 1fr; }
+  .section { padding: 64px 0; }
+}
+@media (max-width: 640px) {
+  .grid-3, .grid-2, .stats, .faq { grid-template-columns: 1fr; }
+  .container { padding: 0 20px; }
+  .hero { padding: 64px 0 48px; }
+  .topnav nav a:not(.btn) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="container inner">
+    <a class="brand" href="./"><span class="logo" aria-hidden="true">G0</span>GPT-Zero</a>
+    <nav aria-label="主导航">
+      <a href="#protocols">协议覆盖</a>
+      <a href="#features">能力</a>
+      <a href="#quickstart">快速开始</a>
+      <a href="#bench">基准数据</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://potterluo.github.io/GPT-Zero/docs/">文档</a>
+      <a class="btn" href="https://github.com/Potterluo/GPT-Zero">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- hero -->
+  <section class="hero container">
+    <span class="kicker">Offline · Multi-protocol · Agentic-ready</span>
+    <h1>离线 <span class="accent">多协议 Mock LLM</span> 推理服务</h1>
+    <p class="sub">GPT-Zero 不是模型，也不产生有意义的回答——它复现推理服务的<strong>可观测行为</strong>：一套引擎同时支持 OpenAI Chat Completions、OpenAI Responses 与 Anthropic Messages 三种调用形式，流式与 fake 工具调用都能正确返回，让推理栈、网关、调度器与监控面板在没有 GPU 的环境里也能被压测和回归。</p>
+    <div class="ctas">
+      <a class="btn" href="#quickstart">快速开始</a>
+      <a class="btn ghost" href="https://github.com/Potterluo/GPT-Zero">查看源码</a>
+    </div>
+    <div class="meta">
+      <span class="badge blue">PyPI · openai-mock</span>
+      <span class="badge blue">GHCR · amd64 / arm64</span>
+      <span class="badge"><span class="dot" aria-hidden="true"></span>Apache-2.0 · 完全免费</span>
+      <span class="badge">纯离线 · 运行期零网络</span>
+    </div>
+  </section>
+
+  <!-- stats -->
+  <section class="container" aria-label="关键指标">
+    <div class="stats">
+      <div class="stat"><b>3</b><span>协议共用一套引擎（JSON + SSE）</span></div>
+      <div class="stat"><b>79</b><span>契约测试全绿（三协议 + bench）</span></div>
+      <div class="stat"><b>10.12</b><span>单机 RPS（16 并发，coding profile）</span></div>
+      <div class="stat"><b>83.6%</b><span>前缀缓存命中（16 并发，token 级）</span></div>
+    </div>
+  </section>
+
+  <!-- protocols -->
+  <section class="section container" id="protocols">
+    <span class="kicker">协议覆盖</span>
+    <h2>三种调用形式，一个引擎</h2>
+    <p class="lede">每个协议都按官方事件序返回流式帧，工具调用以协议原生形态出现——这正是 agent 循环真正解析的东西。<code style="font-family:var(--mono);font-size:14px;color:var(--corporate-blue)">tool_choice</code> 语义三协议互通，token 计数、前缀缓存与 TTFT/TPOT 完全同口径。</p>
+    <div class="grid-3">
+      <article class="card">
+        <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <h3>OpenAI Chat Completions</h3>
+        <p><span class="endpoint">POST /v1/chat/completions</span></p>
+        <ul>
+          <li><b>流式：</b>data: chunk 逐帧 + <b>[DONE]</b>，含 include_usage</li>
+          <li><b>工具调用：</b><b>delta.tool_calls</b> 参数按 24 字符分片，拼接即合法 JSON</li>
+          <li><b>收尾：</b>finish_reason = tool_calls / length / stop</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <h3>OpenAI Responses</h3>
+        <p><span class="endpoint">POST /v1/responses · GET /v1/responses/{id}</span></p>
+        <ul>
+          <li><b>流式：</b>response.created → output_item.added → *_delta → response.completed</li>
+          <li><b>工具调用：</b><b>function_call</b> 条目 + function_call_arguments.delta，call_id 回填</li>
+          <li><b>多轮：</b>previous_response_id 服务端链式上下文</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>Anthropic Messages</h3>
+        <p><span class="endpoint">POST /v1/messages</span></p>
+        <ul>
+          <li><b>流式：</b>message_start → ping → content_block_* → message_delta → message_stop</li>
+          <li><b>工具调用：</b><b>tool_use</b> 块（toolu_* id）+ input_json_delta；tool_result 回填续轮</li>
+          <li><b>收尾：</b>stop_reason = tool_use / max_tokens / stop_sequence</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- features -->
+  <section class="section alt" id="features">
+    <div class="container">
+      <span class="kicker">能力</span>
+      <h2>为 agentic 负载而设计</h2>
+      <p class="lede">mock 的价值在于「形状正确」：token 数精确、延迟可建模、缓存可命中、指标可抓取、压测可复现。</p>
+      <div class="grid-3">
+        <article class="card">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></div>
+          <h3>精确 token 计数</h3>
+          <p>仓库自带 deepseek_v3_tokenizer 时按真实 tokenizer 精确计数，输出严格等于 max_tokens；缺失时回退确定性启发式。同 seed 完全可复现。</p>
+        </article>
+        <article class="card">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+          <h3>三协议 fake 工具调用</h3>
+          <p>按 tools 的 JSON Schema 合成参数（路径/命令/内容有真实感），流式参数分片拼回即合法 JSON；tool_result / function_call_output 回填后循环正常终止。</p>
+        </article>
+        <article class="card">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg></div>
+          <h3>64-token 块前缀缓存</h3>
+          <p>blake2b 块哈希 + trie 前缀匹配 + LRU 序列淘汰，共享 system 前缀可跨会话命中；命中率同时体现在计数器与 TTFT 上。</p>
+        </article>
+        <article class="card">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <h3>TTFT / TPOT 延迟模型</h3>
+          <p>首 token = prefill（未命中 token 数）+ 排队 + 抖动；每 token = 配置 TPOT。--max-concurrency 制造排队，复现「容量拐点」。</p>
+        </article>
+        <article class="card">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+          <h3>vLLM 风格指标</h3>
+          <p>Prometheus 命名子集（prefix_cache_*、time_to_first_token 等）+ /api/stats 的 p50/p90/p99 分位数，Prometheus 与面板直接可用。</p>
+        </article>
+        <article class="card">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 15l4-6 4 3 5-8"/></svg></div>
+          <h3>闭环压测 bench</h3>
+          <p>python -m bench sweep：chat/coding/agentic/longctx 四种 profile，一条命令出 MD/CSV/PNG/SVG 与容量曲线。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- quickstart -->
+  <section class="section container" id="quickstart">
+    <span class="kicker">快速开始</span>
+    <h2>60 秒跑起来</h2>
+    <p class="lede">PyPI 包名 <b>openai-mock</b>（import 名仍是 gptzero），或直接用 GHCR 双架构镜像。启动后把 SDK 的 base_url 指过来即可。</p>
+    <div class="tabs" role="tablist" aria-label="安装方式">
+      <button class="tab" role="tab" id="tab-pip" aria-controls="panel-pip" aria-selected="true">pip 安装</button>
+      <button class="tab" role="tab" id="tab-docker" aria-controls="panel-docker" aria-selected="false">Docker</button>
+      <button class="tab" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="false">源码开发</button>
+    </div>
+    <div class="panel active" id="panel-pip" role="tabpanel" aria-labelledby="tab-pip">
+pip install openai-mock
+<span class="c"># 启动（8090 只是示例端口）</span>
+gptzero --port 8090 --tokenizer deepseek_v3_tokenizer
+<span class="c"># OpenAI SDK 指过来</span>
+<span class="p">client = OpenAI(base_url="http://127.0.0.1:8090/v1", api_key="not-needed")</span>
+<span class="c"># Anthropic 客户端指过来</span>
+<span class="p">ANTHROPIC_BASE_URL=http://127.0.0.1:8090</span>
+    </div>
+    <div class="panel" id="panel-docker" role="tabpanel" aria-labelledby="tab-docker">
+<span class="c"># amd64 / arm64 双架构，按平台自动选择</span>
+docker run --rm -p 8090:8090 ghcr.io/potterluo/gpt-zero:latest
+<span class="c"># 断网自检（容器内 smoke，零外网）</span>
+docker run --rm --network none ghcr.io/potterluo/gpt-zero:latest smoke
+<span class="c"># 压测并落盘结果</span>
+docker run --rm --network none -v %cd%/results:/app/results \
+  ghcr.io/potterluo/gpt-zero:latest bench sweep --concurrency 1,2,4
+    </div>
+    <div class="panel" id="panel-source" role="tabpanel" aria-labelledby="tab-source">
+git clone https://github.com/Potterluo/GPT-Zero.git
+cd GPT-Zero
+python -m venv .venv
+.venv\Scripts\pip install -e ".[dev]"
+.venv\Scripts\python server.py --port 8090 --tokenizer deepseek_v3_tokenizer
+<span class="c"># 全量契约测试（三协议 + bench）</span>
+.venv\Scripts\python -m pytest -q
+    </div>
+  </section>
+
+  <!-- bench -->
+  <section class="section alt" id="bench">
+    <div class="container">
+      <span class="kicker">基准数据</span>
+      <h2>真实压测，不是纸面参数</h2>
+      <p class="lede">本机 Windows / Python 3.11 / uvicorn 单进程，1ms 高精度定时器，coding profile（工具结果驱动上下文增长），每个并发点 15 秒闭环。数据与读法见 <a href="https://github.com/Potterluo/GPT-Zero/blob/main/results/README.md">results/README.md</a>。</p>
+      <div class="table-wrap">
+        <table>
+          <caption style="position:absolute;left:-9999px">sweep_mock_a：TTFT 120ms / TPOT 8ms / 64 并发槽位</caption>
+          <thead>
+            <tr><th>并发</th><th class="num">RPS</th><th class="num">TTFT p50 (ms)</th><th class="num">TTFT p99 (ms)</th><th class="num">TPOT p50 (ms)</th><th class="num">缓存命中</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td class="num">0.63</td><td class="num">172</td><td class="num">217</td><td class="num">8.1</td><td class="num">70.8%</td></tr>
+            <tr><td>4</td><td class="num">2.45</td><td class="num">158</td><td class="num">238</td><td class="num">8.2</td><td class="num">83.1%</td></tr>
+            <tr><td>8</td><td class="num">4.95</td><td class="num">156</td><td class="num">231</td><td class="num">7.7</td><td class="num">84.0%</td></tr>
+            <tr><td>16</td><td class="num"><span class="good">10.12</span></td><td class="num">156</td><td class="num">232</td><td class="num">7.4</td><td class="num"><span class="good">83.6%</span></td></tr>
+            <tr><td>16 <span style="color:var(--slate);font-size:12px">(8 槽位过载)</span></td><td class="num">2.04</td><td class="num"><span class="warn">3935</span></td><td class="num">5049</td><td class="num">17.0</td><td class="num">76.7%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="tbl-note">最后一行来自 sweep_mock_b（ttft=400ms / tpot=18ms / 仅 8 槽位）：并发超过槽位时 TTFT p50 从 ~450ms 跳到 3935ms——这正是 mock 复现「容量拐点」的方式：排队，而不是算得更慢。</p>
+    </div>
+  </section>
+
+  <!-- faq -->
+  <section class="section container" id="faq">
+    <span class="kicker">FAQ</span>
+    <h2>常见问题</h2>
+    <p class="lede">同样的问题也以结构化数据（schema.org FAQPage）提供给搜索引擎与 AI 回答引擎。</p>
+    <div class="faq">
+      <div class="faq-item">
+        <h3>GPT-Zero 是什么？</h3>
+        <p>一个纯离线的多协议 Mock LLM 推理服务（PyPI 包 <code>openai-mock</code>，Python 包 <code>gptzero</code>）。它不是模型、不产生有意义的回答，而是复现推理服务在 agentic 负载下的可观测行为：精确 token 计数、TTFT/TPOT 延迟、排队、缓存命中、流式工具调用帧与成功率。</p>
+      </div>
+      <div class="faq-item">
+        <h3>支持哪些 API 协议？</h3>
+        <p>三套协议共用同一引擎：OpenAI Chat Completions（/v1/chat/completions）、OpenAI Responses（/v1/responses，含 previous_response_id 链式多轮与 GET 检索）、Anthropic Messages（/v1/messages），JSON 与 SSE 双模式，另保留旧版 /v1/completions。</p>
+      </div>
+      <div class="faq-item">
+        <h3>fake 工具调用是怎么实现的？</h3>
+        <p>按请求里的 tools JSON Schema 合成参数合法的工具调用，并按协议原生流式形态输出：Chat 用 <code>delta.tool_calls</code> 分片、Responses 用 <code>function_call</code> + <code>function_call_arguments.delta</code>、Messages 用 <code>tool_use</code>（toolu_* id）+ <code>input_json_delta</code>。工具结果回填后返回普通文本，agent 循环正常终止。</p>
+      </div>
+      <div class="faq-item">
+        <h3>token 计数准确吗？</h3>
+        <p>准确。仓库自带 deepseek_v3_tokenizer 时按真实 tokenizer 精确计数，输出严格等于 max_tokens；否则回退确定性启发式。两种模式下同 seed 可复现。</p>
+      </div>
+      <div class="faq-item">
+        <h3>怎么安装？</h3>
+        <p><code>pip install openai-mock</code> 后运行 <code>gptzero --port 8090</code>；或 <code>docker run --rm -p 8090:8090 ghcr.io/potterluo/gpt-zero:latest</code>（amd64/arm64 双架构）。把 OpenAI SDK 的 base_url 指向 http://127.0.0.1:8090/v1，或 Anthropic 客户端的 base_url 指向 http://127.0.0.1:8090 即可。</p>
+      </div>
+      <div class="faq-item">
+        <h3>开源协议与收费？</h3>
+        <p>Apache-2.0 开源，完全免费。协议适配形态参考 deepseek-recipe（MIT）的协议转换思路，只取协议转换部分，不做 tokenizer 转换。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- cta -->
+  <section class="section container" style="padding-top:0">
+    <div class="cta-band">
+      <h2>给推理栈一个「没有 GPU 的真实负载」</h2>
+      <p>离线镜像、契约测试、闭环压测、Prometheus 指标——克隆下来就能跑。</p>
+      <div class="ctas" style="display:flex;gap:12px;justify-content:center">
+        <a class="btn" href="https://github.com/Potterluo/GPT-Zero">GitHub 仓库</a>
+        <a class="btn ghost" href="https://potterluo.github.io/GPT-Zero/docs/">阅读文档</a>
+        <a class="btn ghost" href="https://pypi.org/project/openai-mock/">PyPI</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container inner">
+    <div>© 2026 GPT-Zero Contributors · <a href="https://github.com/Potterluo/GPT-Zero/blob/main/LICENSE">Apache-2.0</a></div>
+    <div>
+      <a href="https://github.com/Potterluo/GPT-Zero">GitHub</a> ·
+      <a href="https://pypi.org/project/openai-mock/">PyPI</a> ·
+      <a href="https://potterluo.github.io/GPT-Zero/docs/">文档</a> ·
+      <a href="llms.txt">llms.txt</a> ·
+      <a href="sitemap.xml">sitemap</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t === tab)); });
+      document.querySelectorAll('.panel').forEach(function (p) {
+        p.classList.toggle('active', p.id === tab.getAttribute('aria-controls'));
+      });
+    });
+  });
+})();
+</script>
+<noscript><style>.panel{display:block;margin-bottom:16px}.panel+.panel{margin-top:-8px}</style></noscript>
+
+</body>
+</html>

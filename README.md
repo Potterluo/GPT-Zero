@@ -216,7 +216,8 @@ docker run --rm --network none -v %cd%/results:/app/results gptzero:v4 bench swe
 ```
 gptzero/           mock 服务（app / protocols / engine / tokenizer / metrics / dashboard）
 bench/             闭环压测 harness（client / workload / runner / aggregate / report / charts）
-docs/              ARCHITECTURE.md · BENCHMARK.md · DOCKER.md · RELEASE.md（= Pages 站点源）
+docs/              ARCHITECTURE.md · BENCHMARK.md · DOCKER.md · RELEASE.md（= Pages 文档区源）
+site-src/          Pages 落地页（corporate-clean 风格，SEO meta + JSON-LD + llms.txt/sitemap）
 tests/             server 契约测试 + 三协议契约测试 + bench 单测
 scripts/           离线镜像、容器 smoke、CI 辅助
 .github/workflows/ ci.yml（PR 门禁）· pages.yml（文档站）· release.yml（tag → PyPI + GHCR）

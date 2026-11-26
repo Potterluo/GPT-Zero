@@ -28,6 +28,10 @@ class ServerConfig:
     port: int = 8080
     # --- models ---
     models: list[str] = field(default_factory=lambda: list(DEFAULT_MODELS))
+    # 验收/回归用：失败注入与鉴权校验
+    error_rate: float = 0.0            # 0..1，按请求计数确定性地返回 error_status
+    error_status: int = 500            # 注入的 HTTP 状态码
+    require_api_key: str = ""          # 非空时校验 Authorization: Bearer <key>（或 x-api-key）
     model_dir: str = "/mnt/model"
     # --- timing model ---
     ttft_ms: float = 180.0
@@ -89,6 +93,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", "-p", type=int, help="bind port (default 8080)")
     p.add_argument("--model", action="append", help="served model id (repeatable or comma separated)")
     p.add_argument("--models-file", help="JSON file with a list of model ids")
+    p.add_argument("--error-rate", type=float, default=None,
+                   help="failure injection rate 0..1 (deterministic: every Nth request fails)")
+    p.add_argument("--error-status", type=int, default=None,
+                   help="HTTP status code injected for failed requests (default 500)")
+    p.add_argument("--require-api-key", default=None,
+                   help="require Authorization: Bearer <key> (or x-api-key); 401 otherwise")
     p.add_argument("--model-dir", help="directory scanned for local tokenizers/models")
     p.add_argument("--ttft-ms", type=float, help="base time-to-first-token in ms")
     p.add_argument("--tpot-ms", type=float, help="per-output-token decode time in ms")
@@ -151,6 +161,9 @@ def load_config(argv: list[str] | None = None) -> ServerConfig:
         "log_file": args.log_file,
         "stats_sample_limit": args.stats_sample_limit,
         "workers": args.workers,
+        "error_rate": args.error_rate if args.error_rate is not None else cfg.error_rate,
+        "error_status": args.error_status if args.error_status is not None else cfg.error_status,
+        "require_api_key": args.require_api_key if args.require_api_key is not None else cfg.require_api_key,
     }
     for key, value in mapping.items():
         if value is not None:

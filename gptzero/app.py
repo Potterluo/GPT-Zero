@@ -254,6 +254,7 @@ def create_app(cfg: ServerConfig) -> FastAPI:
     metrics = Metrics(cfg.stats_sample_limit)
     logs = RequestLogStore(limit=cfg.log_limit, path=cfg.log_file)
     state = AppState(cfg=cfg, tokenizer=tokenizer, engine=engine, metrics=metrics, logs=logs)
+    state.error_counter = 0
     if cfg.max_concurrency and cfg.max_concurrency > 0:
         state.sem = asyncio.Semaphore(cfg.max_concurrency)
 
@@ -273,6 +274,32 @@ def create_app(cfg: ServerConfig) -> FastAPI:
         state.waiting -= 1
         metrics.set_waiting(state.waiting)
         return waited
+
+    def check_auth(request: Request) -> None:
+        """cfg.require_api_key 非空时校验 Bearer / x-api-key，失败抛 401。"""
+        key = cfg.require_api_key
+        if not key:
+            return
+        provided = request.headers.get("x-api-key")
+        if not provided:
+            auth = request.headers.get("authorization") or ""
+            if auth.startswith("Bearer "):
+                provided = auth[len("Bearer "):]
+        if provided != key:
+            raise HTTPException(status_code=401, detail={
+                "error": {"message": "invalid API key", "type": "invalid_request_error"}})
+
+    def inject_failure() -> HTTPException | None:
+        """cfg.error_rate > 0 时按请求计数确定性注入失败（每 N 个请求一次）。"""
+        rate = cfg.error_rate
+        if rate and rate > 0:
+            state.error_counter += 1
+            every = max(1, round(1.0 / rate))
+            if state.error_counter % every == 0:
+                return HTTPException(status_code=cfg.error_status, detail={
+                    "error": {"message": f"injected failure ({state.error_counter}th request)",
+                              "type": "server_error"}})
+        return None
 
     def finish_record(
         *,
@@ -352,6 +379,10 @@ def create_app(cfg: ServerConfig) -> FastAPI:
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request):
         started = time.perf_counter()
+        check_auth(request)
+        injected = inject_failure()
+        if injected is not None:
+            raise injected
         try:
             raw = await request.json()
         except Exception:
@@ -558,6 +589,10 @@ def create_app(cfg: ServerConfig) -> FastAPI:
     @app.post("/v1/completions")
     async def completions(request: Request):
         started = time.perf_counter()
+        check_auth(request)
+        injected = inject_failure()
+        if injected is not None:
+            raise injected
         try:
             raw = await request.json()
         except Exception:
@@ -623,6 +658,10 @@ def create_app(cfg: ServerConfig) -> FastAPI:
     @app.post("/v1/responses")
     async def responses_endpoint(request: Request):
         started = time.perf_counter()
+        check_auth(request)
+        injected = inject_failure()
+        if injected is not None:
+            return _openai_error(injected.detail["error"]["message"], injected.status_code)
         try:
             raw = await request.json()
         except Exception:
@@ -785,6 +824,10 @@ def create_app(cfg: ServerConfig) -> FastAPI:
     @app.post("/v1/messages")
     async def messages_endpoint(request: Request):
         started = time.perf_counter()
+        check_auth(request)
+        injected = inject_failure()
+        if injected is not None:
+            return _anthropic_error(injected.detail["error"]["message"], injected.status_code)
         try:
             raw = await request.json()
         except Exception:

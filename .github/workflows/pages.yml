@@ -1,0 +1,52 @@
+name: pages
+
+# GitHub Pages 文档站：mkdocs-material 构建并部署（Source 必须是 "GitHub Actions"）
+#   仓库 Settings → Pages → Build and deployment → Source: GitHub Actions（一次性配置）
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build mkdocs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装 mkdocs-material
+        run: pip install mkdocs-material
+
+      - name: 构建站点（strict：链接/警告视为错误）
+        run: mkdocs build --strict --site-dir site
+
+      - name: 站点体积
+        run: du -sh site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

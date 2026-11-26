@@ -1,16 +1,17 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gptzero"
+name = "gpt-zero"
 dynamic = ["version"]
-description = "Offline OpenAI-compatible mock inference server for agentic workload benchmarks"
+description = "Offline multi-protocol mock LLM server (OpenAI Chat Completions / Responses / Anthropic Messages) for agentic benchmarks"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "GPT-Zero Contributors" }]
-keywords = ["mock", "llm", "openai", "agentx", "benchmark", "offline"]
+keywords = ["mock", "llm", "openai", "anthropic", "benchmark", "offline"]
 
 dependencies = [
   "fastapi>=0.109",
@@ -18,9 +19,15 @@ dependencies = [
   "pydantic>=2.5",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Potterluo/GPT-Zero"
+Documentation = "https://potterluo.github.io/GPT-Zero/"
+Repository = "https://github.com/Potterluo/GPT-Zero"
+Issues = "https://github.com/Potterluo/GPT-Zero/issues"
+Changelog = "https://github.com/Potterluo/GPT-Zero/releases"
+
 [project.optional-dependencies]
 bench = ["httpx>=0.25", "matplotlib>=3.9", "numpy>=1.26"]
-agentx = ["httpx>=0.25", "matplotlib>=3.9", "numpy>=1.26"]
 tokenizer = ["transformers>=4.40"]
 dev = [
   "httpx>=0.25",
@@ -29,18 +36,18 @@ dev = [
   "pytest>=8",
   "pytest-asyncio>=0.23",
 ]
+docs = ["mkdocs-material>=9.5"]
 
 [project.scripts]
 gptzero = "gptzero.cli:main"
 gptzero-bench = "bench.cli:main"
-gptzero-agentx = "agentx.cli:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "gptzero.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["gptzero*", "bench*", "agentx*"]
+include = ["gptzero*", "bench*"]
 
 [tool.setuptools.package-data]
 gptzero = ["dashboard.html"]

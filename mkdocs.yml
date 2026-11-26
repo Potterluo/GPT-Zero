@@ -1,0 +1,58 @@
+# GPT-Zero 文档站点配置（GitHub Pages，由 .github/workflows/pages.yml 构建）
+site_name: GPT-Zero
+site_description: 纯离线多协议 Mock LLM 服务（OpenAI Chat Completions / Responses / Anthropic Messages）
+site_author: GPT-Zero Contributors
+site_url: https://potterluo.github.io/GPT-Zero/
+repo_url: https://github.com/Potterluo/GPT-Zero
+repo_name: Potterluo/GPT-Zero
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; GPT-Zero Contributors · Apache-2.0
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    # 自动跟随系统深浅色
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: 切到深色
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: 切到浅色
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - 首页: index.md
+  - 架构与实现: ARCHITECTURE.md
+  - 压测与指标: BENCHMARK.md
+  - Docker 离线镜像: DOCKER.md
+  - 发布流程: RELEASE.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true

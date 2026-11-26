@@ -13,7 +13,7 @@
 .DS_Store
 
 # --- Python 本地环境（绝不能进镜像）---
-# 注意用通配：仓库里可能有 .venv / .venv-agentx / .venv-bench 等多套环境（并行开发时）
+# 注意用通配：仓库里可能有多套虚拟环境目录（并行开发时）
 .venv*
 venv*
 env

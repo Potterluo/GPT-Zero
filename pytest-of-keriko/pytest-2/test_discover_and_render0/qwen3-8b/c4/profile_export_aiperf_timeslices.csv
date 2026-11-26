@@ -1,5 +1,0 @@
-Timeslice,Start_NS,End_NS,Metric,Unit,Stat,Value
-0,0,1,Time to First Token,ms,p50,160
-1,0,1,Time to First Token,ms,p50,170
-0,0,1,Output Token Throughput,tokens/sec,avg,100
-1,0,1,Output Token Throughput,tokens/sec,avg,110

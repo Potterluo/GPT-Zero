@@ -1,6 +1,6 @@
-﻿<#
+<#
 .SYNOPSIS
-    GPT-Zero v3 离线镜像构建 / 导出（Windows 主用脚本）。
+    GPT-Zero v4 离线镜像构建 / 导出（Windows 主用脚本）。
 
 .DESCRIPTION
     一次做完：docker build → docker save 成 tar → 打印校验值与 docker load 用法。
@@ -9,10 +9,10 @@
     产物体积：默认（WITH_TRANSFORMERS=0）约 700MB tar；带 transformers 约 +160MB。
 
 .PARAMETER Tag
-    镜像 tag，默认 gptzero:v3。
+    镜像 tag，默认 gptzero:v4。
 
 .PARAMETER Out
-    tar 输出路径，默认 dist/gptzero-v3.tar（dist/ 已在 .gitignore 里）。
+    tar 输出路径，默认 dist/gptzero-v4.tar（dist/ 已在 .gitignore 里）。
 
 .PARAMETER NoBuild
     跳过 docker build，只打包本地已有镜像（用于「镜像已在别的机器构建好」的场景）。
@@ -28,12 +28,12 @@
 
 .EXAMPLE
     .\scripts\offline_image.ps1
-    .\scripts\offline_image.ps1 -NoBuild -Tag gptzero:v3
-    .\scripts\offline_image.ps1 -WithTransformers -Out dist/gptzero-v3-hf.tar
+    .\scripts\offline_image.ps1 -NoBuild -Tag gptzero:v4
+    .\scripts\offline_image.ps1 -WithTransformers -Out dist/gptzero-v4-hf.tar
 #>
 [CmdletBinding()]
 param(
-    [string]$Tag = "gptzero:v3",
+    [string]$Tag = "gptzero:v4",
     [string]$Out = "",
     [switch]$NoBuild,
     [switch]$NoCache,
@@ -43,7 +43,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-if (-not $Out) { $Out = Join-Path $root "dist/gptzero-v3.tar" }
+if (-not $Out) { $Out = Join-Path $root "dist/gptzero-v4.tar" }
 if (-not [System.IO.Path]::IsPathRooted($Out)) { $Out = Join-Path $root $Out }
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }

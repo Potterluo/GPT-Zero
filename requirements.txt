@@ -1,4 +1,4 @@
-# Core runtime (mock server). The bench/agentx harnesses additionally need
+# Core runtime (mock server). The bench harness additionally needs
 # httpx + matplotlib + numpy; see pyproject.toml extras.
 fastapi>=0.109
 uvicorn>=0.20

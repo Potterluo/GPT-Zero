@@ -1,6 +1,6 @@
 # 结果索引（真实压测产物）
 
-所有数字都来自本机对 `gptzero` mock 的真实 HTTP 压测（`python -m bench` / `python -m agentx replay`），
+所有数字都来自本机对 `gptzero` mock 的真实 HTTP 压测（`python -m bench`），
 原始 JSON 与图表同目录，可用 `python -m bench report results/<name>.json` 从 JSON 重建表格与图。
 
 > 服务端：本机 Windows / Python 3.11 / uvicorn 单进程，已启用 1ms 高精度定时器
@@ -68,45 +68,7 @@
 
 ![Pareto：吞吐 vs p90 TTFT](charts/sweep_profiles/pareto.png)
 
-## 4. AgentX 形状回放（`results/agentx/`）
-
-合成 WEKA trace（8 条 session、750 请求、88 个子代理块；median in≈14.3k、out≈359、主链缓存前缀 97.9%），
-闭环并发 1/2/4，每点 30s，warmup 10 + primer。
-
-| 并发 | 请求 | 成功率 | TTFT p50/p90/p99 (ms) | TPOT p50 (ms) | out tok/s | 缓存命中 |
-|---|---|---|---|---|---|---|
-| 1 | 3 | 100% | 227 / 241 / 244 | 5.63 | 70.7 | 96.3% |
-| 2 | 6 | 100% | 174 / 201 / 203 | 5.84 | 88.3 | 97.9% |
-| 4 | 10 | 100% | 207 / 287 / 287 | 6.08 | 146.3 | 98.4% |
-
-要点：TPOT≈8.2ms 与 `--tpot-ms 8` 对齐 → `ignore_eos` 精确长度语义生效；缓存 99%+ 与官方
-AgentX 口径（98% cached input）同量级；请求数少（3/7/13）是因为单条 trace 的 idle gap 很长，
-分位数只作形状参考。详见 [docs/AGENTX_REPRO.md](../docs/AGENTX_REPRO.md)。
-
-![AgentX 吞吐与 TTFT](agentx/charts/throughput_ttft_vs_concurrency.png)
-
-![AgentX 缓存命中](agentx/charts/cache_hit_vs_concurrency.png)
-
-## 4b. AgentX 官方 harness 真跑（真实语料，离线）
-
-用真正的 `agentx-harness==1.0.7` 跑真实语料 `semianalysisai/cc-traces-weka-062126`（8 条），
-mock 作服务端，产出官方 artifacts。详见 [../docs/AGENTX_REAL.md](../docs/AGENTX_REAL.md)。
-
-| 并发 | 时长 | 请求 | 成功率 | TTFT p50/p90/p99 (ms) | ITL p50 | E2E p50/p90 (ms) | out tok/s | ISL p50 | 缓存命中（理论/服务端） |
-|---|---|---|---|---|---|---|---|---|---|
-| 4 | 180s | 58 | 100% | 160 / 239 / 370 | 8.7 ms | 1175 / 2491 | 103 | 54,258 | 95.5% / 93.4% |
-
-![AgentX 真跑 TTFT 时序](agentx_real/charts/timeline_ttft.png)
-
-![AgentX 真跑吞吐时序](agentx_real/charts/timeline_throughput.png)
-
-> 表：`results/agentx_real/summary.{md,csv,json}`；原始产物：
-> `experiments/agentx_real/run_c4_180/`（`profile_export_aiperf.json`、`profile_export.jsonl`、
-> `server_metrics_export.json`、51 个 1s timeslices）。
-> 局限：只跑通 1 个并发点（180s，官方要求 ≥900s）；c=1/2/8 的尝试在本机卡在 AIPerf 的 Windows
-> 记录总线（非 mock/语料问题），已在文档中如实记录。
-
-## 5. 复现
+## 4. 复现
 
 ```powershell
 # A 组
@@ -118,14 +80,9 @@ mock 作服务端，产出官方 artifacts。详见 [../docs/AGENTX_REAL.md](../
 .venv\Scripts\python.exe -m bench serve-sweep --launch-server --port 8093 `
   --ttft-ms 400 --tpot-ms 18 --max-concurrency 8 `
   --profiles coding --concurrency 1,2,4,8,16 --duration 15 --name sweep_mock_b
-
-# AgentX 形状
-.venv\Scripts\python.exe server.py --port 8092 --tokenizer deepseek_v3_tokenizer --ttft-ms 120 --tpot-ms 8
-.venv\Scripts\python.exe -m agentx replay --traces agentx\traces --url http://127.0.0.1:8092 `
-  --concurrency 1,2,4 --duration 30 --warmup 10 --out results\agentx
 ```
 
-## 6. 数据可信度
+## 5. 数据可信度
 
 - 每个并发点都校验 `/api/config` 与首点一致（不一致直接 fail），并记录 `config_unverified`；
 - ITL/TPOT 与服务端配置对账：`sweep_mock_a` TPOT 7.4–8.5ms（配置 8）、`sweep_mock_b` 15.8–17.0ms（配置 18）；
@@ -133,17 +90,15 @@ mock 作服务端，产出官方 artifacts。详见 [../docs/AGENTX_REAL.md](../
 - 早期一版 `sweep_mock_a`（17:05）因 Windows 定时器精度导致 ITL p50=0.1ms，已被 17:13 的重跑替换；
   `bench/` 里保留了按点配置自检，防止这类问题静默通过。
 
-## 7. 文件
+## 6. 文件
 
 ```
 results/
   sweep_mock_a.{json,md,csv}   charts/sweep_mock_a/*.{png,svg}
   sweep_mock_b.{json,md,csv}   charts/sweep_mock_b/*.{png,svg}
   sweep_profiles.{json,md,csv} charts/sweep_profiles/*.{png,svg}
-  agentx/replay.{json,md,csv}  agentx/charts/*.{png,svg}
   charts/dashboard.png         管理面板实拍（压测运行中）
   compose-bench.json           容器内 compose 压测（ops 交付验证）
-  agentx_docker/replay.*       容器内 agentx 回放（ops 交付验证）
 ```
 
 ![管理面板](charts/dashboard.png)

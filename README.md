@@ -1,50 +1,72 @@
-# GPT-Zero · offline mock LLM for agentic benchmarks
+# GPT-Zero · offline multi-protocol mock LLM
 
-[![CI](https://img.shields.io/badge/ci-ready-brightgreen)](#)
+[![CI](https://github.com/Potterluo/GPT-Zero/actions/workflows/ci.yml/badge.svg)](https://github.com/Potterluo/GPT-Zero/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/gpt-zero)](https://pypi.org/project/gpt-zero/)
+[![Docker (GHCR)](https://img.shields.io/badge/ghcr.io-potterluo%2Fgpt--zero-blue)](https://github.com/Potterluo/GPT-Zero/pkgs/container/gpt-zero)
+[![Docs](https://img.shields.io/badge/docs-GitHub_Pages-blue)](https://potterluo.github.io/GPT-Zero/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-一个**纯离线**、OpenAI 兼容的 Mock 推理服务，用来复现「编码 Agent（Claude Code / Aider / Codex 类）打推理后端」时的负载形状：
-真实工具调用、增长的超长上下文、64-token 块的 prefix cache、vLLM 风格 Prometheus 指标、开箱即用的压测脚本与图表。
+一个**纯离线**的 Mock 推理服务：一套引擎同时支持 **OpenAI Chat Completions / OpenAI Responses / Anthropic Messages** 三种调用形式（JSON + SSE），每个协议都有真实的 **fake 工具调用**，外加增长的超长上下文、64-token 块的 prefix cache、vLLM 风格 Prometheus 指标、开箱即用的压测脚本与图表。
 
 > 它**不是**模型，不产生有意义的回答。它复现的是**可观测行为**：token 计数、TTFT/TPOT、排队、缓存命中、工具调用帧、成功率——让推理栈、网关、调度器、监控面板在没有 GPU 的环境里也能被压测和回归。
+>
+> 协议适配的形态参考了 [deepseek-recipe](https://github.com/deepseek-ai/deepseek-recipe) 的 server 示例（一个后端同时服务 `/v1/chat/completions`、`/v1/responses`、`/v1/messages` 三种格式）：这里只取它的「协议转换 + 流式/完整响应」思路，不做 tokenizer 转换/编码那部分。
 
 ```
-                 ┌──────────────────────────┐
-   agent loop ──▶│  /v1/chat/completions    │──▶ SSE / JSON（工具调用、精确 token 数）
-   (bench/agentx)│  tools · streaming       │
-                 ├──────────────────────────┤
+                 ┌────────────────────────────────────────────┐
+   agent loop ──▶│  /v1/chat/completions   OpenAI Chat        │
+                 │  /v1/responses          OpenAI Responses   │──▶ SSE / JSON
+                 │  /v1/messages           Anthropic Messages │   （工具调用、精确 token 数）
+                 ├────────────────────────────────────────────┤
+                 │  protocols: 三协议 ↔ 内部表示 的双向适配     │
+                 ├────────────────────────────────────────────┤
                  │  engine: prefix cache    │──▶ 64-token 块哈希 + LRU 序列淘汰
                  │          timing model    │──▶ TTFT = 未命中 prefill + 排队
-                 ├──────────────────────────┤
+                 ├────────────────────────────────────────────┤
                  │  /metrics  /api/stats    │──▶ vLLM 命名计数器 + 分位数统计
-                 └──────────────────────────┘
+                 └────────────────────────────────────────────┘
 ```
 
-## v3 做了什么（相对 v2 单回复 mock）
+## v4 做了什么（相对 v3）
 
-| 能力 | v2 | v3 |
+| 能力 | v3 | v4 |
 |---|---|---|
-| 回复内容 | 固定一篇长文 | 确定性 filler，**精确**按 `max_tokens` 产出；本地 tokenizer 计数 |
-| 工具调用 | 无 | OpenAI `tool_calls`（流式 delta、并行调用、合法 JSON 参数、`role=tool` 收尾） |
-| 上下文 | 无状态 | 多轮增长上下文；64-token 块 prefix cache（LRU 序列淘汰） |
-| 延迟 | 固定字符间 sleep | TTFT/TPOT 模型 + 未命中 prefill + 并发排队（可配 `--max-concurrency`） |
-| 指标 | 只统计日志里的 token | vLLM 命名 Prometheus 指标 + `/api/stats` 分位数（TTFT/TPOT/ITL/E2E/RPS/缓存命中） |
-| 压测 | 无 | `python -m bench`：闭环并发、profile、sweep、出 MD/CSV/PNG/SVG |
-| AgentX | 不支持 | `docs/AGENTX.md` 参数调研 + WEKA trace 生成/离线 DAG 回放 |
-| 交付 | `python server.py` | 同左 + 纯离线 Docker 镜像（`dist/gptzero-v3.tar`） |
-| 管理面板 | 静态日志页 | 实时 KPI/延迟/缓存/工具调用面板（无 CDN、无外网） |
+| 调用形式 | 仅 OpenAI Chat Completions | **+ OpenAI Responses API、+ Anthropic Messages API**（JSON/SSE 双模式） |
+| 工具调用 | OpenAI `tool_calls` | 三协议原生形态：Chat `delta.tool_calls`、Responses `function_call` + `function_call_arguments.delta`、Messages `tool_use` + `input_json_delta`（id 为 `toolu_*`） |
+| 多轮上下文 | 客户端回填历史 | 同左，Responses 另有 `previous_response_id` 服务端链式上下文 + `GET /v1/responses/{id}` |
+| AgentX 配套 | `agentx/` trace 生成 + 回放、`agentx_offline/` 镜像 | **整体移除**（mock 功能保持完整） |
+| 回复内容 | 确定性 filler，精确按 `max_tokens` 产出 | 同左 |
+| 延迟/缓存/指标 | TTFT/TPOT 模型 + prefix cache + Prometheus | 同左，三协议同口径统计 |
 
 ## 快速开始
 
+=== 三种安装方式
+
+**pip**（PyPI 包名 `gpt-zero`，import 名仍是 `gptzero`）：
+
 ```bash
-# 1) 安装（离线可用：依赖只在本地 venv / 镜像里）
+pip install gpt-zero
+gptzero --port 8090 --tokenizer deepseek_v3_tokenizer
+```
+
+**Docker**（GHCR 多架构镜像，amd64/arm64）：
+
+```bash
+docker run --rm -p 8090:8090 ghcr.io/potterluo/gpt-zero:latest
+```
+
+**源码**（开发模式，离线可用：依赖只在本地 venv / 镜像里）：
+
+```bash
 python -m venv .venv
 .venv\Scripts\pip install -e ".[dev]"      # Windows
 # source .venv/bin/activate && pip install -e ".[dev]"   # Linux/macOS
 
 # 2) 启动 mock（8090 只是示例端口；本机 8080 可能被其它服务占用）
 .venv\Scripts\python server.py --port 8090 --tokenizer deepseek_v3_tokenizer
+```
 
+```bash
 # 3) 冒烟
 curl http://127.0.0.1:8090/health
 curl -X POST http://127.0.0.1:8090/v1/chat/completions \
@@ -71,6 +93,70 @@ curl -X POST http://127.0.0.1:8090/v1/chat/completions \
 
 所有参数支持 `GPTZERO_*` 环境变量（如 `GPTZERO_PORT=8090`），CLI 优先。
 
+## 三种调用形式
+
+### OpenAI Chat Completions — `POST /v1/chat/completions`
+
+```bash
+curl -X POST http://127.0.0.1:8090/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-3.5-turbo",
+    "messages": [{"role": "user", "content": "read src/engine.py"}],
+    "tools": [{"type": "function", "function": {
+      "name": "read_file",
+      "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}],
+    "max_tokens": 64, "stream": false
+  }'
+```
+
+返回标准 `choices[0].message.tool_calls`（`id` 为 `call_*`、`arguments` 是合法 JSON），`finish_reason="tool_calls"`；把 `role=tool` 结果回填后再请求，得到普通文本收尾。`stream=true` 时参数按 24 字符切片从 `delta.tool_calls[].function.arguments` 流出。
+
+### OpenAI Responses — `POST /v1/responses`
+
+```bash
+curl -X POST http://127.0.0.1:8090/v1/responses \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1",
+    "instructions": "You are a coding agent.",
+    "input": [{"type": "message", "role": "user", "content": "read src/engine.py"}],
+    "tools": [{"type": "function", "name": "read_file",
+               "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}],
+    "tool_choice": "required",
+    "max_output_tokens": 64
+  }'
+```
+
+- 返回标准 `response` 对象：文本在 `output[].type="message"` 的 `output_text` 里，工具调用是 `output[].type="function_call"`（`call_id/name/arguments`）。
+- mock 无自然 EOS：纯文本轮 `status="incomplete"` + `incomplete_details={"reason":"max_output_tokens"}`；工具轮 `status="completed"`。
+- `stream=true` → `event: response.created` → `output_item.added` → `output_text.delta` / `function_call_arguments.delta` → `response.completed`（或 `response.incomplete`），帧带 `sequence_number`。
+- 服务端存最近响应：`GET /v1/responses/{id}` 可取回；带上 `previous_response_id` + `function_call_output` 即可走服务端多轮链路（上下文计入 token 与前缀缓存，命中率随轮次上升）。
+
+### Anthropic Messages — `POST /v1/messages`
+
+```bash
+curl -X POST http://127.0.0.1:8090/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-3-5-sonnet",
+    "max_tokens": 64,
+    "system": [{"type": "text", "text": "You are a mock.", "cache_control": {"type": "ephemeral"}}],
+    "messages": [{"role": "user", "content": "read src/engine.py"}],
+    "tools": [{"name": "read_file", "input_schema": {
+      "type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}],
+    "tool_choice": {"type": "any"},
+    "stream": false
+  }'
+```
+
+- 返回标准 `message` 对象：`content` 里是 `text` / `tool_use` 块（`tool_use.id` 为 `toolu_*`、`input` 是 JSON 对象），`stop_reason` ∈ `tool_use|max_tokens|stop_sequence`。
+- 工具结果用 `user` 消息里的 `tool_result` 块回填（mock 会把它转成 `role=tool`），下一轮得到纯文本，agent 循环正常终止。
+- `stream=true` → `message_start` → `ping` → `content_block_start/delta/stop`（文本 `text_delta`、工具参数 `input_json_delta`）→ `message_delta` → `message_stop`，与 Anthropic 官方事件序一致。
+
+> 三个协议共用同一套引擎与指标：`tool_choice` 语义互通（`required` / 指定函数 / `any` 强制调用，`none` 强制不调用），token 计数、前缀缓存、TTFT/TPOT 完全同口径。
+
 ## 压测：一条命令出表 + 出图
 
 ```bash
@@ -94,7 +180,7 @@ results/sweep_mock_a.csv
 results/charts/*.png / *.svg  TTFT、吞吐、缓存命中、CDF、Pareto、profile 对比
 ```
 
-指标口径（与 ClawPerf / AIPerf 对齐）：TTFT 从发出请求到**第一个含 content/tool_calls 的 delta**；TPOT = `(e2e-ttft)/(completion_tokens-1)`；缓存命中率取服务端计数器**差分**（token 级，不是请求级）。
+指标口径：TTFT 从发出请求到**第一个含 content/tool_calls 的 delta**；TPOT = `(e2e-ttft)/(completion_tokens-1)`；缓存命中率取服务端计数器**差分**（token 级，不是请求级）。
 
 已跑出的真实结果（表格 + 图表 + 读法与复现命令）：**[results/README.md](results/README.md)**。
 
@@ -102,90 +188,46 @@ results/charts/*.png / *.svg  TTFT、吞吐、缓存命中、CDF、Pareto、prof
 - `sweep_mock_b`（ttft=400ms / tpot=18ms / 8 槽位）：并发 16 超过槽位，TTFT p50 从 ~450ms 跳到 **3935ms**、RPS 停在 2.0 —— 复现“容量拐点”；
 - `sweep_profiles`：同并发下 chat / coding / agentic 的差异，coding 缓存命中 97.6%、agentic 70.7%。
 
-## AgentX 复现
-
-`docs/AGENTX.md` 是完整的参数调研（`agentx-harness==1.0.7` 的 scenario 锁、数据集形状、warmup/cache-bust 规则、哪些能/不能离线复现），`docs/AGENTX_REPRO.md` 记录实测。
-
-```bash
-# 生成 AgentX 形状的 WEKA trace（主链 + 子代理 SPAWN/JOIN、64-token 块哈希）
-.venv\Scripts\python -m agentx generate --sessions 8 --requests 24 --subagents 0.4 --out agentx/traces
-
-# 离线 DAG 回放（闭环并发、warmup、cache-bust）
-.venv\Scripts\python -m agentx replay --url http://127.0.0.1:8092 --traces agentx/traces --concurrency 4
-```
-
-**我们真的跑通了官方 harness**（离线 + 真实语料）：`agentx-harness==1.0.7` 加载
-`semianalysisai/cc-traces-weka-062126`（8 条），对 mock 做了 c=4 / 180s 回放，产出官方
-`profile_export_aiperf.json` / `profile_export.jsonl` / `server_metrics_export.json` / 1s timeslices：
-
-| 并发 | 请求 | TTFT p50/p90/p99 | ITL p50 | out tok/s | 缓存命中（理论/服务端） |
-|---|---|---|---|---|---|
-| 4 | 58 | 160 / 239 / 370 ms | 8.7 ms | 103 | 95.5% / 93.4% |
-
-完整命令、5 个坑与修复、官方产物说明见 [docs/AGENTX_REAL.md](docs/AGENTX_REAL.md)；
-结果与图在 [results/agentx_real/](results/agentx_real/)。官方形式（本地 pinned 语料）等价命令：
-
-```bash
-agentx profile --url http://127.0.0.1:8092 --endpoint-type chat --streaming \
-  --public-dataset semianalysis_cc_traces_weka_062126 \
-  --tokenizer deepseek-ai/DeepSeek-V3 --model gpt-3.5-turbo \
-  --concurrency 4 --benchmark-duration 180 --num-dataset-entries 8 \
-  --unsafe-override --output-artifact-dir experiments/agentx_real/run_c4_180
-```
-
 ## Docker（纯离线）
 
 ```bash
-docker build -t gptzero:v3 .
-docker run --rm --network none gptzero:v3 smoke          # 容器内自检
-docker run --rm -p 8090:8090 gptzero:v3 mock             # 起 mock
-docker run --rm --network none -v %cd%/results:/app/results gptzero:v3 bench sweep --concurrency 1,2,4
+docker build -t gptzero:v4 .
+docker run --rm --network none gptzero:v4 smoke          # 容器内自检
+docker run --rm -p 8090:8090 gptzero:v4 mock             # 起 mock
+docker run --rm --network none -v %cd%/results:/app/results gptzero:v4 bench sweep --concurrency 1,2,4
 ```
 
-离线交付：`scripts/offline_image.ps1` 负责 build + `docker save` 到 `dist/gptzero-v3.tar`，目标机器 `docker load` 即用。细节见 `docs/DOCKER.md`。
+离线交付：`scripts/offline_image.ps1` 负责 build + `docker save` 到 `dist/gptzero-v4.tar`，目标机器 `docker load` 即用。细节见 `docs/DOCKER.md`。
 
-### 另一个镜像：`agentx-offline`（对真实 LLM 服务跑 AgentX）
+## 发布（PyPI / GHCR / Pages）
 
-`gptzero` 是**被测服务**；`agentx-offline` 是**离线测试工具**：内置官方 `agentx-harness==1.0.7`
-+ 真实语料 `semianalysisai/cc-traces-weka-062126`（393 条，1.77GB Arrow）+ tokenizer，
-在无外网环境里对任意 OpenAI 兼容服务跑 AgentX，并生成**单文件 HTML 对比报告**：
+一次 tag push 三产物，全自动（详见 [docs/RELEASE.md](docs/RELEASE.md)）：
 
-```bash
-pwsh scripts/prepare_agentx_cache.ps1                 # 一次性准备缓存
-docker build -t agentx-offline:1.0.7 agentx_offline    # 3.92 GB，自带语料
-docker save -o dist/agentx-offline-1.0.7.tar agentx-offline:1.0.7
+| 产物 | 触发 | 地址 |
+|---|---|---|
+| PyPI 包 `gpt-zero` | `git tag v4.0.1 && git push origin v4.0.1` | [pypi.org/project/gpt-zero](https://pypi.org/project/gpt-zero/) |
+| GHCR 镜像 `:版本` + `:latest`（amd64/arm64） | 同上 | `ghcr.io/potterluo/gpt-zero` |
+| 文档站（mkdocs-material） | push main / 手动触发 | [potterluo.github.io/GPT-Zero](https://potterluo.github.io/GPT-Zero/) |
 
-# 目标机器（断网）：对两个模型/两套 infra 各跑一次
-docker run --rm -v /srv/results:/results agentx-offline:1.0.7 run \
-  --url http://10.0.0.5:8000 --model Qwen3-8B --target qwen3-vllm \
-  --concurrency 4,8,16 --duration 900
-docker run --rm -v /srv/results:/results agentx-offline:1.0.7 run \
-  --url http://10.0.0.6:8000 --model Qwen3-8B --target qwen3-sglang \
-  --concurrency 4,8,16 --duration 900
-# 汇总成 HTML（ECharts 内联，离线可开）
-docker run --rm -v /srv/results:/results agentx-offline:1.0.7 report --root /results
-```
-
-报告含 KPI 卡、汇总表、6 张 target 对比图、每个 target 的时序页；产物目录里是官方
-`profile_export_aiperf.json` / `profile_export.jsonl` / timeslices / `server_metrics_export.json`。
-详见 [docs/AGENTX_OFFLINE_IMAGE.md](docs/AGENTX_OFFLINE_IMAGE.md)，实测报告与截图在
-[results/agentx_offline_demo/](results/agentx_offline_demo/)。
+发布前的一次性配置（Pages 开启、PyPI Trusted Publishing）也写在 `docs/RELEASE.md`。
 
 ## 仓库结构
 
 ```
-gptzero/           mock 服务（app / engine / tokenizer / metrics / dashboard）
+gptzero/           mock 服务（app / protocols / engine / tokenizer / metrics / dashboard）
 bench/             闭环压测 harness（client / workload / runner / aggregate / report / charts）
-agentx/            AgentX 调研配套：WEKA trace 生成 + 离线 DAG 回放
-docs/              AGENTX.md · AGENTX_REPRO.md · BENCHMARK.md · DOCKER.md · ARCHITECTURE.md
-tests/             server 契约测试 + bench/agentx 单测
+docs/              ARCHITECTURE.md · BENCHMARK.md · DOCKER.md · RELEASE.md（= Pages 站点源）
+tests/             server 契约测试 + 三协议契约测试 + bench 单测
 scripts/           离线镜像、容器 smoke、CI 辅助
+.github/workflows/ ci.yml（PR 门禁）· pages.yml（文档站）· release.yml（tag → PyPI + GHCR）
+mkdocs.yml         文档站配置（mkdocs-material + mermaid）
 Dockerfile         python:3.11-slim 多阶段、非 root、运行期零网络
 ```
 
 ## 兼容性
 
-v2 的全部端点保留：`/`（面板）、`/v1/chat/completions`、`/v1/models`、`/health`、`/api/logs`、`/api/log/{id}`、`/api/config`、`/api/stats`、`/api/models*`、`/api/tokens`。旧的 `assets/dashboard.html` 仍可通过 `/legacy` 打开。
+- v2/v3 的全部端点保留：`/`（面板）、`/v1/chat/completions`、`/v1/completions`、`/v1/models`、`/health`、`/api/logs`、`/api/log/{id}`、`/api/config`、`/api/stats`、`/api/models*`、`/api/tokens`。旧的 `assets/dashboard.html` 仍可通过 `/legacy` 打开。
+- v4 新增：`/v1/responses`（POST + GET）、`/v1/messages`。
 
 ## 测试
 
@@ -198,10 +240,10 @@ v2 的全部端点保留：`/`（面板）、`/v1/chat/completions`、`/v1/model
 - mock 的吞吐上限是**单机 Python event loop**，不是 GPU；高并发下 CPU 先饱和，不代表真实服务端能力。
 - 长上下文有 CPU 成本：176k token 的 prompt 首次编码约 **290ms**，之后走编码缓存约 **20ms**/请求（块哈希 + 计数）。这是 mock 的开销，报告解读时要扣除。
 - Windows 上默认定时器精度 ~15.6ms 会让 8ms 的 TPOT 被放大到 ~15.7ms 或偶发提前返回；`server.py` 启动时会调用 `timeBeginPeriod(1)`（日志行 `timer : 1ms high-resolution timer enabled`），**看到这行才代表 TPOT 可信**。Linux 无此问题。
-- filler 文本无语义；`finish_reason=length` 是常态（没有 EOS），不要据此判断截断缺陷。
+- filler 文本无语义；没有 EOS，因此 Chat 的 `finish_reason=length`、Responses 的 `status=incomplete`、Messages 的 `stop_reason=max_tokens` 是纯文本轮的**常态**，不要据此判断截断缺陷。
 - prefix cache 是**块级模拟**，不含真实 KV 显存/调度器行为；`kv_cache_usage_perc` 是块占用比例。
-- AgentX 官方分数依赖真实模型 + 厂商 chat template + speculative acceptance；本仓库只复现**负载形状与时序**，不产出可提交的 submission。
+- 协议覆盖以「调用都能正确返回」为目标：不实现多模态内容（图片只忽略）、`web_search`/`computer_use` 等非函数工具、`response_format` 约束解码与 logprobs。
 
 ## License
 
-Apache-2.0（见 [LICENSE](LICENSE)）。AgentX / AIPerf 的商标与数据集版权归各自所有者。
+Apache-2.0（见 [LICENSE](LICENSE)）。协议适配形态参考 [deepseek-recipe](https://github.com/deepseek-ai/deepseek-recipe)（MIT）。

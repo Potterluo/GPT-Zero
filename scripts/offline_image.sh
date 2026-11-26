@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================================
-# GPT-Zero v3 离线镜像构建 / 导出（Linux/macOS 主用；Windows 用 offline_image.ps1）
+# GPT-Zero v4 离线镜像构建 / 导出（Linux/macOS 主用；Windows 用 offline_image.ps1）
 # =============================================================================
 #   bash scripts/offline_image.sh                       # build + save
 #   bash scripts/offline_image.sh -n                     # 只 save 已有镜像（不 build）
-#   bash scripts/offline_image.sh -t gptzero:v3 -o dist/gptzero-v3.tar
+#   bash scripts/offline_image.sh -t gptzero:v4 -o dist/gptzero-v4.tar
 #   bash scripts/offline_image.sh -f                     # 带 transformers（精确 token 计数）
 #   bash scripts/offline_image.sh -p linux/arm64         # buildx 跨架构
 # =============================================================================
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TAG="gptzero:v3"
-OUT="dist/gptzero-v3.tar"
+TAG="gptzero:v4"
+OUT="dist/gptzero-v4.tar"
 WITH_TF=0
 NO_BUILD=0
 NO_CACHE=0

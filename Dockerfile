@@ -1,13 +1,13 @@
 # =============================================================================
-# GPT-Zero v3 — 纯离线 Mock 推理服务镜像
+# GPT-Zero v4 — 纯离线多协议 Mock 推理服务镜像
 # =============================================================================
 # 构建期：只访问清华 PyPI 镜像（可用 --network none 之外的正常网络构建）。
 # 运行期：**零网络依赖**（不装 curl、不拉模型、不访问外网；HEALTHCHECK 用标准库）。
 #
-#   docker build -t gptzero:v3 .
-#   docker build -t gptzero:v3 --build-arg WITH_TRANSFORMERS=1 .   # 精确 token 计数
-#   docker run --rm -p 8090:8090 gptzero:v3                        # = mock
-#   docker run --rm --network none gptzero:v3 smoke                # 离线自检
+#   docker build -t gptzero:v4 .
+#   docker build -t gptzero:v4 --build-arg WITH_TRANSFORMERS=1 .   # 精确 token 计数
+#   docker run --rm -p 8090:8090 gptzero:v4                        # = mock
+#   docker run --rm --network none gptzero:v4 smoke                # 离线自检
 #
 # 多阶段：builder 里把依赖装到 /install，runtime 只从 builder 拷贝 /usr/local，
 # 因此最终镜像不含 pip 缓存、wheel 包、构建中间层。
@@ -55,8 +55,8 @@ RUN set -eux; \
 FROM ${BASE_IMAGE} AS runtime
 
 LABEL org.opencontainers.image.title="gptzero" \
-      org.opencontainers.image.description="Offline OpenAI-compatible mock LLM inference service for agentic benchmarks (GPT-Zero v3)" \
-      org.opencontainers.image.version="3.x" \
+      org.opencontainers.image.description="Offline multi-protocol mock LLM inference service for agentic benchmarks (GPT-Zero v4)" \
+      org.opencontainers.image.version="4.x" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/gpt-zero/gpt-zero"
 

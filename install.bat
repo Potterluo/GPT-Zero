@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
 REM ============================================================================
-REM GPT-Zero v3 环境安装脚本（Windows）
+REM GPT-Zero v4 环境安装脚本（Windows）
 REM   - 优先复用已有 .venv（项目约定），否则创建
 REM   - 依赖以 pyproject.toml 为准（editable 安装 + dev extras）
 REM   - 走清华 PyPI 镜像，避免墙内超时
@@ -15,7 +15,7 @@ set "MIRROR_HOST=pypi.tuna.tsinghua.edu.cn"
 set "VENV_DIR=.venv"
 
 echo ====================================
-echo GPT-Zero v3 环境安装
+echo GPT-Zero v4 环境安装
 echo 目录: %CD%
 echo ====================================
 echo.

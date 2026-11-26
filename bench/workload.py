@@ -5,8 +5,8 @@
 * 每个会话（Session）由 ``seed`` + 会话序号唯一确定，同一 seed 重放得到相同消息。
 * 会话内按轮推进：chat 6~10 轮；coding/agentic 上下文从 2k 递增到 32k；
   longctx 单轮 64k/128k 输入 + 短输出。
-* coding 每轮把上一轮的 read/write/shell 工具结果回填进历史（模拟 AgentX 类
-  「工具结果驱动上下文增长」的形态）。
+* coding 每轮把上一轮的 read/write/shell 工具结果回填进历史（模拟 agentic 编码
+  Agent「工具结果驱动上下文增长」的形态）。
 * agentic 走真实工具闭环：服务端返回 tool_calls → 客户端构造 role=tool 结果 →
   继续同一轮；并以 20% 概率并行派生一个 subagent 子请求（fan-out）。
 * 所有请求带 ``ignore_eos=true``，``max_tokens`` 可按 profile 或 CLI 覆盖。

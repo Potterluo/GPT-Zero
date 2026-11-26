@@ -1,4 +1,0 @@
-[agentx-offline] c=4 -> /results/mock-fast/c4
-[agentx-offline] agentx profile --url http://host.docker.internal:8092 --endpoint-type chat --streaming --model gpt-3.5-turbo --tokenizer deepseek-ai/DeepSeek-V3 --concurrency 4 --benchmark-duration 120 --num-dataset-entries 8 --stats-interval 30 --output-artifact-dir /results/mock-fast/c4 --public-dataset semianalysis_cc_traces_weka_062126 --unsafe-override
-[agentx-offline] report: /results/report.html
-  c=4   ok=True exit=0 170.9s

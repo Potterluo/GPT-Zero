@@ -1,8 +1,8 @@
-# GPT-Zero v3 离线镜像与运维手册
+# GPT-Zero v4 离线镜像与运维手册
 
-> Owner: `ops` ｜ 适用版本：GPT-Zero v3 ｜ 最后更新：2026-10-28
+> Owner: `ops` ｜ 适用版本：GPT-Zero v4 ｜ 最后更新：2026-11-26（v4：镜像 tag 由 `gptzero:v3` 改为 `gptzero:v4`，历史实测记录中的 v3 tag 为当时输出）
 >
-> 一句话：**一个 `python:3.11-slim` 起的小镜像，把「OpenAI 兼容 Mock 推理服务 + bench + agentx」
+> 一句话：**一个 `python:3.11-slim` 起的小镜像，把「多协议 Mock 推理服务 + bench」
 > 全部装进去；构建期走内网镜像源，运行期彻底断网也能跑。**
 
 ---
@@ -11,14 +11,14 @@
 
 | 内容 | 位置 | 说明 |
 |---|---|---|
-| `gptzero` 包（服务核心） | `/app/gptzero` | FastAPI + uvicorn，OpenAI 兼容 `--network none` 可跑 |
-| `server.py` | `/app/server.py` | v2 兼容入口（等价 `python -m gptzero`） |
-| `bench/`、`agentx/` | `/app/bench`、`/app/agentx` | 压测 harness 与 AgentX trace 回放（由队友维护，镜像按契约预留入口） |
+| `gptzero` 包（服务核心） | `/app/gptzero` | FastAPI + uvicorn，OpenAI/Anthropic 兼容，`--network none` 可跑 |
+| `server.py` | `/app/server.py` | 兼容入口（等价 `python -m gptzero`） |
+| `bench/` | `/app/bench` | 闭环压测 harness |
 | 本地 tokenizer | `/app/deepseek_v3_tokenizer` | 可选精确计数（需 `--build-arg WITH_TRANSFORMERS=1`） |
 | 运行期依赖 | 系统 site-packages | fastapi / uvicorn / pydantic / httpx / numpy / matplotlib / pytest |
-| 入口脚本 | `/app/docker/entrypoint.sh` | `mock|bench|agentx|smoke|shell` 子命令 |
+| 入口脚本 | `/app/docker/entrypoint.sh` | `mock|bench|smoke|shell|pytest` 子命令 |
 | 请求日志卷 | `/data/requests.jsonl` | compose 挂 `./data`，容器重建不丢 |
-| 结果目录 | `/app/results` | compose 挂 `./results`，bench/agentx 产物落宿主机 |
+| 结果目录 | `/app/results` | compose 挂 `./results`，bench 产物落宿主机 |
 
 镜像**不含**：`.venv`、`.git`、`results/`、`dist/`、`data/`、任何 wheel/tar 包、模型权重、CUDA。
 
@@ -42,7 +42,7 @@ HF_HUB_OFFLINE=1       TRANSFORMERS_OFFLINE=1      GPTZERO_HOST=0.0.0.0  GPTZERO
    不解析依赖图、不下载构建后端（setuptools/wheel 已在镜像里）。
 3. tokenizer 只读仓库内 `deepseek_v3_tokenizer/`，并强制 `HF_HUB_OFFLINE=1`（transformers 不会尝试连 Hub）。
 4. 图表用 `MPLBACKEND=Agg`，不弹窗、不需要字体外网下载。
-5. 验证据此而来：`docker run --rm --network none gptzero:v3 smoke` **必须** 通过（见 §9 实测记录）。
+5. 验证据此而来：`docker run --rm --network none gptzero:v4 smoke` **必须** 通过（见 §9 实测记录）。
 
 ---
 
@@ -52,19 +52,19 @@ HF_HUB_OFFLINE=1       TRANSFORMERS_OFFLINE=1      GPTZERO_HOST=0.0.0.0  GPTZERO
 
 ```bash
 # 默认：不装 transformers（体积小，heuristic 分词）
-docker build -t gptzero:v3 .
+docker build -t gptzero:v4 .
 
 # 精确 token 计数：加装 transformers（约 +150~200MB）
-docker build -t gptzero:v3 --build-arg WITH_TRANSFORMERS=1 .
+docker build -t gptzero:v4 --build-arg WITH_TRANSFORMERS=1 .
 
 # 强制重装依赖（改了 requirements 或怀疑缓存）
-docker build --no-cache -t gptzero:v3 .
+docker build --no-cache -t gptzero:v4 .
 ```
 
 构建期使用的索引（可用 build-arg 覆盖）：
 
 ```bash
-docker build -t gptzero:v3 \
+docker build -t gptzero:v4 \
   --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
   --build-arg PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn .
 ```
@@ -74,12 +74,12 @@ docker build -t gptzero:v3 \
 ```powershell
 .\scripts\offline_image.ps1                 # 构建 + save + sha256 + 打印 load 用法
 .\scripts\offline_image.ps1 -NoBuild        # 只打包已有镜像
-.\scripts\offline_image.ps1 -WithTransformers -Out dist/gptzero-v3-hf.tar
+.\scripts\offline_image.ps1 -WithTransformers -Out dist/gptzero-v4-hf.tar
 ```
 
 ```bash
 bash scripts/offline_image.sh               # Linux/macOS 等价物
-bash scripts/offline_image.sh -n -o /tmp/gptzero-v3.tar
+bash scripts/offline_image.sh -n -o /tmp/gptzero-v4.tar
 ```
 
 ### 3.1 两种分词模式（体积 vs 精确度）
@@ -116,22 +116,22 @@ bash scripts/offline_image.sh -n -o /tmp/gptzero-v3.tar
 ```powershell
 # 交付机上：构建并打包
 .\scripts\offline_image.ps1
-# → dist\gptzero-v3.tar + dist\gptzero-v3.tar.sha256
+# → dist\gptzero-v4.tar + dist\gptzero-v4.tar.sha256
 
 # 目标机（无外网、无 registry）：
-certutil -hashfile gptzero-v3.tar SHA256      # 与 .sha256 比对
-docker load -i gptzero-v3.tar
+certutil -hashfile gptzero-v4.tar SHA256      # 与 .sha256 比对
+docker load -i gptzero-v4.tar
 docker images | findstr gptzero
 
 # 立刻验证纯离线可用
-docker run --rm --network none gptzero:v3 smoke
+docker run --rm --network none gptzero:v4 smoke
 ```
 
 ```bash
 # Linux 侧
-sha256sum -c gptzero-v3.tar.sha256
-docker load -i gptzero-v3.tar
-docker run --rm --network none gptzero:v3 smoke
+sha256sum -c gptzero-v4.tar.sha256
+docker load -i gptzero-v4.tar
+docker run --rm --network none gptzero:v4 smoke
 ```
 
 镜像**从不 push** 到任何 registry；`dist/` 已在 `.gitignore` 中。
@@ -143,13 +143,13 @@ docker run --rm --network none gptzero:v3 smoke
 ### 5.1 mock（常驻服务，默认子命令）
 
 ```bash
-docker run --rm -p 8090:8090 gptzero:v3
+docker run --rm -p 8090:8090 gptzero:v4
 # 等价
-docker run --rm -p 8090:8090 gptzero:v3 mock
+docker run --rm -p 8090:8090 gptzero:v4 mock
 ```
 
 > 端口说明：本机 `127.0.0.1:8080` 被 `piforged` 常驻占用，因此**镜像、脚本、compose 统一用 8090**。
-> 想换端口：`docker run --rm -p 9090:8090 -e GPTZERO_PORT=8090 gptzero:v3`（容器内仍是 8090，
+> 想换端口：`docker run --rm -p 9090:8090 -e GPTZERO_PORT=8090 gptzero:v4`（容器内仍是 8090，
 > 只改宿主机映射）；或 `-e GPTZERO_PORT=9090 -p 9090:9090`（容器内也改）。
 
 常用参数覆盖（`GPTZERO_*` 环境变量 ↔ CLI 参数，CLI 优先级更高）：
@@ -161,10 +161,10 @@ docker run --rm -p 8090:8090 \
   -e GPTZERO_MAX_CONCURRENCY=128 \
   -e GPTZERO_TOOL_CALL_RATIO=0.8 \
   -v "$PWD/data:/data" \
-  gptzero:v3 mock --model gpt-3.5-turbo,qwen3-32b
+  gptzero:v4 mock --model gpt-3.5-turbo,qwen3-32b
 ```
 
-任意 CLI 参数都可以直接跟在 `mock` 后面：`gptzero:v3 mock --prefill-tps 20000 --decode-tps 1200`。
+任意 CLI 参数都可以直接跟在 `mock` 后面：`gptzero:v4 mock --prefill-tps 20000 --decode-tps 1200`。
 批量参数可用 `-e GPTZERO_ARGS="--jitter 0 --seed 7"`（会做 shell 分词后追加）。
 请求日志默认写 `/data/requests.jsonl`；未挂卷时自动退化到 `/tmp/`（不会启动失败）。
 
@@ -189,25 +189,12 @@ docker compose --profile bench run --rm bench \
 - 走 compose 默认桥接网络，容器内用服务名 `mock` 访问，**不额外占宿主机端口**。
 - `./results` 与 `./data` 双向挂载，跑完宿主机直接看到 JSON/MD/图。
 
-### 5.3 agentx（trace 生成 / 回放，profile）
+### 5.3 smoke / shell / pytest（调试用）
 
 ```bash
-docker compose --profile agentx run --rm agentx \
-    replay --url http://mock:8090 --out results/agentx.json
-
-# 只生成 trace
-docker compose --profile agentx run --rm agentx generate --out results/trace.json
-```
-
-`agentx` 服务把宿主 `./agentx` 以只读方式挂进容器，改代码后无需重建镜像即可联调。
-若镜像内 `python -m agentx` 尚未就绪（队友未提交 CLI），入口会打印明确提示并 **退出码 3**，不会静默失败。
-
-### 5.4 smoke / shell / pytest（调试用）
-
-```bash
-docker run --rm --network none gptzero:v3 smoke        # 端到端自检（0/1）
-docker run --rm -it gptzero:v3 shell                  # 进容器
-docker run --rm gptzero:v3 pytest                     # 容器内跑单元测试
+docker run --rm --network none gptzero:v4 smoke        # 端到端自检（0/1）
+docker run --rm -it gptzero:v4 shell                  # 进容器
+docker run --rm gptzero:v4 pytest                     # 容器内跑单元测试
 ```
 
 `smoke` 覆盖：`/health`、`/v1/models`、chat 非流式、chat 流式（含 `include_usage`）、
@@ -219,19 +206,18 @@ docker run --rm gptzero:v3 pytest                     # 容器内跑单元测试
 ## 6. 用 docker compose 的一站式体验
 
 ```bash
-docker compose build                     # gptzero:v3
+docker compose build                     # gptzero:v4
 docker compose up -d mock                # 宿主机 8090 → 容器 8090
 curl http://127.0.0.1:8090/health        # {"status":"ok"}
 curl -s http://127.0.0.1:8090/metrics | head
 
-docker compose --profile bench  run --rm bench  run --url http://mock:8090 --profile coding --duration 20 --out results/c.json
-docker compose --profile agentx run --rm agentx replay --url http://mock:8090 --out results/a.json
-docker compose --profile smoke  run --rm smoke        # 容器内断网自检
+docker compose --profile bench run --rm bench  run --url http://mock:8090 --profile coding --duration 20 --out results/c.json
+docker compose --profile smoke run --rm smoke        # 容器内断网自检
 docker compose down -v
 ```
 
 `docker-compose.yml` 的 `mock` 服务显式声明了 healthcheck（`/health`，10s 间隔），
-`bench`/`agentx` 依赖该条件；`smoke` 服务 `network_mode: none`，是「离线」最硬的证据。
+`bench` 依赖该条件；`smoke` 服务 `network_mode: none`，是「离线」最硬的证据。
 
 ---
 
@@ -256,7 +242,7 @@ docker compose down -v
 ```bash
 # 一次性（需要 QEMU，Docker Desktop 自带）
 docker buildx create --name gz --use --bootstrap        # 首次
-docker buildx build --platform linux/arm64 --load -t gptzero:v3-arm64 .
+docker buildx build --platform linux/arm64 --load -t gptzero:v4-arm64 .
 .\scripts\offline_image.ps1 -Platform linux/arm64       # PowerShell 版封装
 bash scripts/offline_image.sh -p linux/arm64            # Bash 版封装
 ```
@@ -278,7 +264,7 @@ bash scripts/offline_image.sh -p linux/arm64            # Bash 版封装
 |---|---|---|
 | `docker build` 卡在 `pip install` | 清华源不可达 / 企业代理 | 加 `--build-arg PIP_INDEX_URL=<内网源>`，或先 `docker load` 基础镜像 |
 | `docker compose ps` 只显示 `8090/tcp`，宿主 curl 打到别的东西 | 宿主机端口已被占用时 Docker Desktop **静默不绑定**（不报错） | `netstat -ano \| findstr :8090` 找到占用者；改用 `GPTZERO_PORT=8095 docker compose up -d mock` |
-| 镜像从 388 MB 涨到 1 GB+ | `.venv-xxx` 之类本地环境被塞进构建上下文 | `.dockerignore` 已用 `.venv*` / `venv*` 通配；确认 `docker run --rm --entrypoint du gptzero:v3 -sh /app` 只有十几 MB |
+| 镜像从 388 MB 涨到 1 GB+ | `.venv-xxx` 之类本地环境被塞进构建上下文 | `.dockerignore` 已用 `.venv*` / `venv*` 通配；确认 `docker run --rm --entrypoint du gptzero:v4 -sh /app` 只有十几 MB |
 | `pip install -e .` 报 `setuptools` 缺失 | 少了 builder 里的 setuptools | 别用 `--no-build-isolation` 以外的自定义改法；重建镜像 |
 | 容器起不来，日志 `ModuleNotFoundError: bench` | `bench/` 尚未提交 | 正常：入口退出码 3 并提示重建；`mock` 路径不受影响 |
 | 宿主机 `curl 127.0.0.1:8090` 无响应 | 端口被占 / 映射错 | `netstat -ano \| findstr :8090`；注意本机 8080 被 piforged 占用，用 8090 |
@@ -291,10 +277,10 @@ bash scripts/offline_image.sh -p linux/arm64            # Bash 版封装
 常用排查命令：
 
 ```bash
-docker run --rm gptzero:v3 python -c "import gptzero,fastapi;print(gptzero.__version__, fastapi.__version__)"
-docker run --rm gptzero:v3 mock --help
-docker inspect gptzero:v3 --format '{{.Config.Healthcheck}}'
-docker history gptzero:v3 --no-trunc | head -20
+docker run --rm gptzero:v4 python -c "import gptzero,fastapi;print(gptzero.__version__, fastapi.__version__)"
+docker run --rm gptzero:v4 mock --help
+docker inspect gptzero:v4 --format '{{.Config.Healthcheck}}'
+docker history gptzero:v4 --no-trunc | head -20
 ```
 
 ---
@@ -311,7 +297,7 @@ docker history gptzero:v3 --no-trunc | head -20
 ### 10.1 构建
 
 ```bash
-$ docker build -t gptzero:v3 .
+$ docker build -t gptzero:v4 .
 # 冷构建（首次，需要从清华源下载 numpy/matplotlib/pillow 等 wheel）
 #8 [builder 4/4] RUN ... pip install --prefix=/install -r /build/requirements-runtime.txt
 #8 167.4 Successfully installed annotated-types-0.8.0 ... fastapi-0.115.6 ... matplotlib-3.9.3 \
@@ -320,12 +306,12 @@ $ docker build -t gptzero:v3 .
 #13 [runtime 6/6] RUN pip install --no-deps --no-build-isolation -e /app
 #13 2.766 Created wheel for gptzero: filename=gptzero-3.0.0-0.editable-py3-none-any.whl size=7463
 #13 2.789 Successfully installed gptzero-3.0.0
-#14 naming to docker.io/library/gptzero:v3 done
+#14 naming to docker.io/library/gptzero:v4 done
 #14 DONE 6.0s
 # 冷构建总耗时 ≈ 3 分 05 秒（其中依赖下载/安装 171.5s）
 
 # 增量重建（只改代码、依赖层命中缓存）
-$ docker build -t gptzero:v3 .
+$ docker build -t gptzero:v4 .
 #14 DONE 0.7s
 # build elapsed: 19s（含 COPY + editable 重装 + 导出层）
 ```
@@ -333,27 +319,27 @@ $ docker build -t gptzero:v3 .
 **镜像大小（精简版，`WITH_TRANSFORMERS=0`，默认）**
 
 ```bash
-$ docker images gptzero:v3 --format '{{.Repository}}:{{.Tag}} | {{.Size}}'
-gptzero:v3 | 388MB              # docker images 显示的是解压后体积
-$ docker image inspect gptzero:v3 --format '{{.Size}}'
+$ docker images gptzero:v4 --format '{{.Repository}}:{{.Tag}} | {{.Size}}'
+gptzero:v4 | 388MB              # docker images 显示的是解压后体积
+$ docker image inspect gptzero:v4 --format '{{.Size}}'
 92350045                        # ≈ 88 MiB，分层压缩后体积（传输用）
-$ docker run --rm --entrypoint du gptzero:v3 -sh /app
+$ docker run --rm --entrypoint du gptzero:v4 -sh /app
 13M     /app                    # 源码 + dashboard.html + deepseek_v3_tokenizer(7.5M)
 ```
 
 > ⚠️ 踩坑记录：第一版镜像一度是 **1.22 GB**（Lead 复验时看到的就是这一版），原因是并行开发时仓库里出现了
-> `.venv-agentx/`（569 MB），而 `.dockerignore` 当时只写了 `.venv`。已改成通配 `.venv*` / `venv*`，
+> 一个 569 MB 的多余 `.venv-*` 目录，而 `.dockerignore` 当时只写了 `.venv`。已改成通配 `.venv*` / `venv*`，
 > 重建后回到 **388 MB**（同一份代码、同一套 8/8 smoke）。现在任何 `.venv-xxx` 都不会再进镜像。
 
 **镜像大小（精确计数版，`WITH_TRANSFORMERS=1`，实测）**
 
 ```bash
-$ docker build -t gptzero:v3-hf --build-arg WITH_TRANSFORMERS=1 .   # 221s（含 transformers+tokenizers 下载）
+$ docker build -t gptzero:v4-hf --build-arg WITH_TRANSFORMERS=1 .   # 221s（含 transformers+tokenizers 下载）
 $ docker images gptzero --format '{{.Repository}}:{{.Tag}} | {{.Size}}'
-gptzero:v3-hf | 549MB      # 388MB 精简版 + 161MB（transformers/tokenizers/huggingface_hub/safetensors）
-gptzero:v3    | 388MB
+gptzero:v4-hf | 549MB      # 388MB 精简版 + 161MB（transformers/tokenizers/huggingface_hub/safetensors）
+gptzero:v4    | 388MB
 
-$ docker run --rm --network none --entrypoint python3 gptzero:v3-hf -c \
+$ docker run --rm --network none --entrypoint python3 gptzero:v4-hf -c \
     "from gptzero.tokenizer import CountingTokenizer; t=CountingTokenizer('auto'); \
      print(t.name); print(t.count('hello world 你好世界'))"
 tokenizers:deepseek_v3_tokenizer      # 真实加载仓库内 tokenizer.json（纯离线，HF_HUB_OFFLINE=1 生效）
@@ -366,20 +352,20 @@ tokenizers:deepseek_v3_tokenizer      # 真实加载仓库内 tokenizer.json（�
 
 ```bash
 $ scripts/offline_image.ps1 -NoBuild
-    镜像        : gptzero:v3
+    镜像        : gptzero:v4
     镜像 ID     : sha256:e6ee1064ae2f
     镜像大小    : 370.3 MB          # inspect .Size；不同引擎版本口径不同（29.0.1 报 92 MB 压缩层）
     docker images: 388MB            # 解压后体积
-    tar 路径    : D:\Vibe_Workspace\GPT-Zero\dist\gptzero-v3.tar
+    tar 路径    : D:\Vibe_Workspace\GPT-Zero\dist\gptzero-v4.tar
     tar 大小    : 88.1 MB           # docker save 产物，拷贝分发就用它
     sha256      : 3f3a333de7ae6d3bb709480856e3cc6045b6934e32e0120f7d06b7906ab39fec
-    校验文件    : dist\gptzero-v3.tar.sha256
+    校验文件    : dist\gptzero-v4.tar.sha256
 ```
 
 > ⚠️ 踩坑记录（续）：该 1.22 GB 版本与现在的 388 MB 版本功能一致，8/8 smoke 均通过，
-> 差别仅在于构建上下文里多打了一个 569 MB 的 `.venv-agentx/`。
+> 差别仅在于构建上下文里多打了一个 569 MB 的多余 `.venv-*` 目录。
 
-### 10.2 纯离线自检：`docker run --rm --network none gptzero:v3 smoke`
+### 10.2 纯离线自检：`docker run --rm --network none gptzero:v4 smoke`
 
 ```text
 ==================================================================
@@ -463,34 +449,24 @@ written: results/compose-bench.json
 $ ls -l results/compose-bench.json     # 宿主机可见（挂卷 ./results:/app/results）
 ```
 
-**agentx（一次性 profile）**
+**agentx 已移除（v4）**
 
-```bash
-$ docker compose --profile agentx run --rm agentx \
-    replay --url http://mock:8090 --concurrency 2 --duration 5 \
-    --out results/agentx_docker --no-charts
-[replay] 8 条 trace × 并发 [2] @ http://mock:8090（gpt-3.5-turbo）
-  c=2: req=4 ok=4 fail=0 TTFT p50/p90=252.616/296.864ms out_tok/s=161.9 cache=96.1%
-[replay] 完成 -> results/agentx_docker
-  results/agentx_docker/replay.json / replay.md / replay.csv
-```
-
-> `agentx replay --out` 把参数当**目录**用（会在其下写 `replay.json|md|csv`），所以传 `results/agentx_docker`。
+v4 起仓库不再包含 AgentX trace 生成/回放（原 `agentx/` 与 `--profile agentx` compose 服务），
+压测统一走 `bench`。
 
 ### 10.4 交叉复验
 
-Lead 在本机独立复验同一镜像：`docker run --rm --network none gptzero:v3 smoke` → 8/8 PASS；
-compose `gptzero-mock` healthy、agentx 一次性任务跑通；`results/compose-bench.json` 中
+Lead 在本机独立复验同一镜像：`docker run --rm --network none gptzero:v4 smoke` → 8/8 PASS；
+compose `gptzero-mock` healthy、bench 一次性任务跑通；`results/compose-bench.json` 中
 coding/c=4 共 25 请求（21 个触发 tool_calls）、TTFT p50 = 220 ms、输入吞吐 16.1k tok/s。
-产物归档路径：`results/compose-bench.json`、`results/agentx_docker/replay.{json,md,csv}`。
 
-> Lead 复验时看到的 1.22 GB 是 `.venv-agentx` 未排除的那一版镜像；修正 `.dockerignore` 后精简版
+> Lead 复验时看到的 1.22 GB 是当时未排除的 `.venv-*` 那一版镜像；修正 `.dockerignore` 后精简版
 > **388 MB**，功能完全一致（同一套 8/8 smoke、同一份 compose 压测脚本）。
 
 `scripts/verify_offline.ps1` 一次性跑完三件事（实测 exit 0）：
 
 ```text
-==> 1/3 镜像存在性         [PASS] gptzero:v3（388 MB）
+==> 1/3 镜像存在性         [PASS] gptzero:v4（388 MB）
 ==> 2/3 断网自检           [PASS] smoke 通过（--network none），耗时 2.8s
 ==> 3/3 离线环境校验       gptzero version: 3.0.0 / tokenizer: auto / PASS
  结论: 离线验证通过 —— 镜像在 --network none 下可独立完成 mock + 全部 smoke 检查
@@ -500,25 +476,24 @@ coding/c=4 共 25 请求（21 个触发 tool_calls）、TTFT p50 = 220 ms、输�
 
 ```bash
 # ---- 构建 ----
-docker build -t gptzero:v3 .                                    # 精简版（388MB，默认，heuristic 分词）
-docker build -t gptzero:v3-hf --build-arg WITH_TRANSFORMERS=1 . # 精确计数版（549MB，实测）
+docker build -t gptzero:v4 .                                    # 精简版（388MB，默认，heuristic 分词）
+docker build -t gptzero:v4-hf --build-arg WITH_TRANSFORMERS=1 . # 精确计数版（549MB，实测）
 
 # ---- 离线自检（零网络，最硬的验收证据）----
-docker run --rm --network none gptzero:v3 smoke                 # → 8/8 PASS, exit 0
+docker run --rm --network none gptzero:v4 smoke                 # → 8/8 PASS, exit 0
 
 # ---- 交付打包 / 落地 ----
-scripts/offline_image.ps1                    # Windows: build + save + sha256 → dist/gptzero-v3.tar (88 MB)
+scripts/offline_image.ps1                    # Windows: build + save + sha256 → dist/gptzero-v4.tar (88 MB)
 bash scripts/offline_image.sh                # Linux/macOS 等价
-docker load -i dist/gptzero-v3.tar           # 目标机
+docker load -i dist/gptzero-v4.tar           # 目标机
 scripts/verify_offline.ps1                   # 断网 smoke + 无 curl/wget + HF 离线断言
 
 # ---- 起服务 ----
-docker run --rm -p 8090:8090 gptzero:v3                          # 宿主机 8090（若被占，改 -p 8095:8090）
+docker run --rm -p 8090:8090 gptzero:v4                          # 宿主机 8090（若被占，改 -p 8095:8090）
 docker compose up -d mock                                        # 同上，带 /data 卷与 healthcheck
 
-# ---- 压测 / 回放（容器内同时起，结果落 ./results）----
-docker compose --profile bench  run --rm bench  run --url http://mock:8090 --profile coding --concurrency 8 --duration 20 --out results/compose-bench.json
-docker compose --profile agentx run --rm agentx replay --url http://mock:8090 --concurrency 2 --duration 5 --out results/agentx_docker
+# ---- 压测（容器内同时起，结果落 ./results）----
+docker compose --profile bench run --rm bench  run --url http://mock:8090 --profile coding --concurrency 8 --duration 20 --out results/compose-bench.json
 
 # ---- 收尾 ----
 docker compose down -v
@@ -531,7 +506,7 @@ docker rm -f $(docker ps -aq --filter "name=gptzero-") 2>/dev/null || true
 |---|---|---|
 | 精确计数版镜像（`WITH_TRANSFORMERS=1`） | ✅ 已构建并实测：**549 MB**，容器内 `CountingTokenizer('auto')` → `tokenizers:deepseek_v3_tokenizer`，`--network none` 下可加载 | 需要精确 `prompt_tokens` 时用它；默认版走 heuristic，契约允许 |
 | `docker compose` 端口冲突静默 | 宿主机 8090 被占时，Docker Desktop **不报错**，容器照起但 `NetworkSettings.Ports` 为空（`docker compose ps` 只显示 `8090/tcp`） | 换 `GPTZERO_PORT` 或先确认 `netstat -ano \| findstr :8090` |
-| Docker Desktop 稳定性 / C 盘空间 | 测试期间 daemon 两次卡死或崩溃（第二次是 `--build-arg WITH_TRANSFORMERS=1` 构建中 `rpc error ... EOF`）；C: 一度只剩 **3.6 GB**，`%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx` 达 **124 GB**；期间 Docker Desktop 自动升级 29.0.1 → 29.9.2 | 与镜像无关，但会影响构建成功率。建议：`docker builder prune -af` + `docker image prune` 后再构建；预留 ≥5 GB 空闲；跨机交付用 88 MB 的 `dist/gptzero-v3.tar` 而不是现场 build |
+| Docker Desktop 稳定性 / C 盘空间 | 测试期间 daemon 两次卡死或崩溃（第二次是 `--build-arg WITH_TRANSFORMERS=1` 构建中 `rpc error ... EOF`）；C: 一度只剩 **3.6 GB**，`%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx` 达 **124 GB**；期间 Docker Desktop 自动升级 29.0.1 → 29.9.2 | 与镜像无关，但会影响构建成功率。建议：`docker builder prune -af` + `docker image prune` 后再构建；预留 ≥5 GB 空闲；跨机交付用 88 MB 的 `dist/gptzero-v4.tar` 而不是现场 build |
 | 精确 token 计数在默认镜像 | tokenizer 打印 `heuristic`，且 warning 出现两次（`_candidate_paths` 把 `/app` 与 `/app/deepseek_v3_tokenizer` 各加一次，重复） | 仅影响计数精确度，不影响接口形态；已反馈 Lead |
 | Windows PowerShell 编码 | `.ps1` 里含中文，必须保存为 **UTF-8 with BOM**，否则 Windows PowerShell 5.1 按 ANSI 解析会报语法错误 | 脚本已按 BOM 保存；编辑后若丢失 BOM，用 `[System.IO.File]::WriteAllText(..., New-Object System.Text.UTF8Encoding($true))` 补回 |
 

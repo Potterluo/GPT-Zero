@@ -1,4 +1,4 @@
-"""FastAPI application: OpenAI-compatible surface + observability + dashboard.
+"""FastAPI application: multi-protocol mock LLM surface + observability + dashboard.
 
 Design notes
 ------------
@@ -7,8 +7,11 @@ Design notes
   a saturated inference server.
 * Every request is logged (ring buffer + optional JSONL) and every completed
   request feeds the metrics registry, so ``/api/stats`` and ``/metrics`` agree.
-* Streaming frames are real SSE; tool calls arrive as OpenAI ``delta.tool_calls``
-  fragments, which is what agent loops actually parse.
+* Three protocol adapters share one engine: OpenAI Chat Completions, the OpenAI
+  Responses API and the Anthropic Messages API (see ``protocols.py``).  Tool
+  calls arrive in each protocol's native streaming shape — OpenAI
+  ``delta.tool_calls`` fragments, Responses ``function_call_arguments`` deltas,
+  Anthropic ``input_json_delta`` blocks — which is what agent loops parse.
 """
 
 from __future__ import annotations
@@ -31,6 +34,22 @@ from .config import ServerConfig, config_as_dict
 from .engine import GenerationPlan, MockEngine
 from .metrics import Metrics, RequestRecord
 from .models import match_model, normalize_model_name, scan_model_directory
+from .protocols import (
+    ResponseStore,
+    anthropic_content_blocks,
+    anthropic_message_object,
+    anthropic_stream_blueprint,
+    anthropic_tool_calls,
+    anthropic_usage,
+    normalize_messages,
+    normalize_responses,
+    new_id,
+    responses_output_items,
+    responses_output_to_messages,
+    responses_response_object,
+    responses_stream_blueprint,
+    responses_usage,
+)
 from .tokenizer import CountingTokenizer, HFTokenCodec
 
 SSE_DONE = "data: [DONE]\n\n"
@@ -118,6 +137,7 @@ class AppState:
     sem: asyncio.Semaphore | None = None
     waiting: int = 0
     extra_tokenizers: dict[str, Any] = field(default_factory=dict)
+    responses: ResponseStore = field(default_factory=ResponseStore)
 
 
 # ---------------------------------------------------------------------------
@@ -126,8 +146,8 @@ class AppState:
 
 
 def _resolve_max_tokens(data: ChatRequest | CompletionRequest, cfg: ServerConfig) -> int:
-    # OpenAI's newer field is ``max_completion_tokens``; AIPerf/AgentX sends it
-    # for chat requests, so treat it as an alias of ``max_tokens``.
+    # OpenAI's newer field is ``max_completion_tokens``; benchmark harnesses
+    # send it for chat requests, so treat it as an alias of ``max_tokens``.
     requested = data.max_tokens
     if requested is None:
         requested = getattr(data, "max_completion_tokens", None)
@@ -157,6 +177,26 @@ def _sse(payload: dict[str, Any]) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
+def _sse_event(event: str | None, payload: dict[str, Any]) -> str:
+    """One SSE frame, optionally with a named event (Responses / Messages)."""
+    prefix = f"event: {event}\n" if event else ""
+    return f"{prefix}data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _openai_error(message: str, status_code: int = 400) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": {"message": message, "type": "invalid_request_error", "param": None, "code": None}},
+    )
+
+
+def _anthropic_error(message: str, status_code: int = 400) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={"type": "error", "error": {"type": "invalid_request_error", "message": message}},
+    )
+
+
 async def _pace(delay_s: float) -> None:
     """Sleep at least ``delay_s``, tolerating spurious early wakeups.
 
@@ -179,9 +219,9 @@ async def _pace(delay_s: float) -> None:
 def _usage(prompt: int, completion: int, cached: int = 0) -> dict[str, Any]:
     """OpenAI usage block, including prompt-cache details.
 
-    AIPerf/AgentX reads ``usage.prompt_tokens_details.cached_tokens`` to compute
-    cache-hit metrics; without it the harness reports "no prompt-cache read
-    tokens were seen" and falls back to scraping Prometheus.
+    Benchmark harnesses read ``usage.prompt_tokens_details.cached_tokens`` to
+    compute cache-hit metrics; without it a harness reports "no prompt-cache
+    read tokens were seen" and falls back to scraping Prometheus.
     """
     return {
         "prompt_tokens": prompt,
@@ -279,8 +319,9 @@ def create_app(cfg: ServerConfig) -> FastAPI:
         finish_reason: str,
         tool_calls: int,
         status: str = "success",
+        preview_messages: list[dict[str, Any]] | None = None,
     ) -> None:
-        messages = body.get("messages") or []
+        messages = preview_messages if preview_messages is not None else body.get("messages") or []
         preview = ""
         for msg in reversed(messages):
             if msg.get("role") == "user" and isinstance(msg.get("content"), str):
@@ -578,6 +619,309 @@ def create_app(cfg: ServerConfig) -> FastAPI:
             if state.sem is not None:
                 state.sem.release()
 
+    # -- OpenAI Responses API ----------------------------------------------
+    @app.post("/v1/responses")
+    async def responses_endpoint(request: Request):
+        started = time.perf_counter()
+        try:
+            raw = await request.json()
+        except Exception:
+            return _openai_error("invalid JSON body")
+        if not isinstance(raw, dict):
+            return _openai_error("request body must be a JSON object")
+        data = normalize_responses(raw, cfg.default_max_tokens, cfg.max_tokens_cap)
+
+        previous_id = raw.get("previous_response_id")
+        if previous_id and state.responses.get(previous_id) is None:
+            return _openai_error(f"Previous response with id '{previous_id}' not found.", 404)
+        data.messages = state.responses.context_for(previous_id) + data.messages
+
+        plan = engine.plan(
+            data.messages,
+            data.model,
+            data.max_tokens,
+            tools=data.tools,
+            tool_choice=data.tool_choice,
+            parallel_tool_calls=data.parallel_tool_calls,
+            force_tool=data.force_tool,
+        )
+        completion_tokens = plan.output_tokens
+        rid = new_id("resp")
+        created_at = int(time.time())
+        status = "completed" if plan.tool_calls else "incomplete"
+
+        if not data.stream:
+            queue_s = await acquire_slot()
+            try:
+                await _pace(plan.ttft_s + plan.decode_s)
+                text = "".join(c for c, _ in plan.chunks)
+                output_items = responses_output_items(
+                    text, plan.tool_calls, "completed" if plan.tool_calls else "incomplete"
+                )
+                usage = responses_usage(plan.prompt_tokens, completion_tokens, plan.cache.hit_tokens)
+                response_obj = responses_response_object(
+                    rid=rid,
+                    model=data.model,
+                    created_at=created_at,
+                    status=status,
+                    output_items=output_items,
+                    usage=usage,
+                    body=raw,
+                    incomplete_details=None if plan.tool_calls else {"reason": "max_output_tokens"},
+                )
+                e2e_s = time.perf_counter() - started
+                finish_record(
+                    model=data.model,
+                    plan=plan,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    completion_tokens=completion_tokens,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(plan.tool_calls),
+                    ok=True,
+                )
+                log_request(
+                    path="/v1/responses",
+                    body=raw,
+                    model=data.model,
+                    stream=False,
+                    plan=plan,
+                    completion_tokens=completion_tokens,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(plan.tool_calls),
+                    preview_messages=data.messages,
+                )
+                state.responses.put(rid, response_obj, data.messages, responses_output_to_messages(output_items))
+                return JSONResponse(response_obj)
+            finally:
+                if state.sem is not None:
+                    state.sem.release()
+
+        usage = responses_usage(plan.prompt_tokens, completion_tokens, plan.cache.hit_tokens)
+        response_obj = responses_response_object(
+            rid=rid,
+            model=data.model,
+            created_at=created_at,
+            status=status,
+            output_items=responses_output_items(
+                "".join(c for c, _ in plan.chunks),
+                plan.tool_calls,
+                "completed" if plan.tool_calls else "incomplete",
+            ),
+            usage=usage,
+            body=raw,
+            incomplete_details=None if plan.tool_calls else {"reason": "max_output_tokens"},
+        )
+        frames = responses_stream_blueprint(
+            rid=rid,
+            model=data.model,
+            created_at=created_at,
+            response_obj=response_obj,
+            chunks=plan.chunks,
+            tpot_s=plan.tpot_s,
+        )
+
+        async def responses_stream():
+            queue_s = await acquire_slot()
+            ok = False
+            error = ""
+            try:
+                if plan.ttft_s:
+                    await _pace(plan.ttft_s)
+                for frame in frames:
+                    await _pace(frame["pace_s"])
+                    yield _sse_event(frame["event"], frame["data"])
+                ok = True
+            except asyncio.CancelledError:
+                error = "client disconnected"
+                raise
+            finally:
+                e2e_s = time.perf_counter() - started
+                if state.sem is not None:
+                    state.sem.release()
+                finish_record(
+                    model=data.model,
+                    plan=plan,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    completion_tokens=completion_tokens,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(plan.tool_calls),
+                    ok=ok,
+                    error=error,
+                )
+                log_request(
+                    path="/v1/responses",
+                    body=raw,
+                    model=data.model,
+                    stream=True,
+                    plan=plan,
+                    completion_tokens=completion_tokens,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(plan.tool_calls),
+                    status="success" if ok else "aborted",
+                    preview_messages=data.messages,
+                )
+                state.responses.put(rid, response_obj, data.messages, responses_output_to_messages(response_obj["output"]))
+
+        return StreamingResponse(responses_stream(), media_type="text/event-stream")
+
+    @app.get("/v1/responses/{response_id}")
+    async def get_response(response_id: str):
+        stored = state.responses.get(response_id)
+        if stored is None:
+            return _openai_error(f"Response with id '{response_id}' not found.", 404)
+        return JSONResponse(stored)
+
+    # -- Anthropic Messages API ---------------------------------------------
+    @app.post("/v1/messages")
+    async def messages_endpoint(request: Request):
+        started = time.perf_counter()
+        try:
+            raw = await request.json()
+        except Exception:
+            return _anthropic_error("invalid JSON body")
+        if not isinstance(raw, dict):
+            return _anthropic_error("request body must be a JSON object")
+        data = normalize_messages(raw, cfg.default_max_tokens, cfg.max_tokens_cap)
+        plan = engine.plan(
+            data.messages,
+            data.model,
+            data.max_tokens,
+            tools=data.tools,
+            tool_choice=data.tool_choice,
+            parallel_tool_calls=data.parallel_tool_calls,
+            force_tool=data.force_tool,
+        )
+        mid = new_id("msg", 24)
+        completion_tokens = plan.output_tokens
+
+        chunks = plan.chunks
+        tool_calls = anthropic_tool_calls(plan.tool_calls)
+        stopped = False
+        if data.stop:
+            text, stopped = _apply_stop("".join(c for c, _ in chunks), data.stop)
+            if stopped:
+                tool_calls = []
+                completion_tokens = tokenizer.count(text)
+                chunks = [(text, max(1, completion_tokens))]
+        stop_reason = (
+            "stop_sequence"
+            if stopped
+            else ("tool_use" if plan.tool_calls else "max_tokens")
+        )
+        usage = anthropic_usage(plan.prompt_tokens, completion_tokens, plan.cache.hit_tokens)
+
+        if not data.stream:
+            queue_s = await acquire_slot()
+            try:
+                await _pace(plan.ttft_s + plan.decode_s)
+                text = "".join(c for c, _ in chunks)
+                blocks = anthropic_content_blocks(text, tool_calls)
+                message_obj = anthropic_message_object(
+                    mid=mid,
+                    model=data.model,
+                    content_blocks=blocks,
+                    stop_reason=stop_reason,
+                    usage=usage,
+                )
+                e2e_s = time.perf_counter() - started
+                finish_record(
+                    model=data.model,
+                    plan=plan,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    completion_tokens=completion_tokens,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(tool_calls),
+                    ok=True,
+                )
+                log_request(
+                    path="/v1/messages",
+                    body=raw,
+                    model=data.model,
+                    stream=False,
+                    plan=plan,
+                    completion_tokens=completion_tokens,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(tool_calls),
+                    preview_messages=data.messages,
+                )
+                return JSONResponse(message_obj)
+            finally:
+                if state.sem is not None:
+                    state.sem.release()
+
+        frames = anthropic_stream_blueprint(
+            mid=mid,
+            model=data.model,
+            chunks=chunks,
+            tool_calls=tool_calls,
+            stop_reason=stop_reason,
+            usage=usage,
+            tpot_s=plan.tpot_s,
+        )
+
+        async def messages_stream():
+            queue_s = await acquire_slot()
+            ok = False
+            error = ""
+            try:
+                if plan.ttft_s:
+                    await _pace(plan.ttft_s)
+                for frame in frames:
+                    await _pace(frame["pace_s"])
+                    yield _sse_event(frame["event"], frame["data"])
+                ok = True
+            except asyncio.CancelledError:
+                error = "client disconnected"
+                raise
+            finally:
+                e2e_s = time.perf_counter() - started
+                if state.sem is not None:
+                    state.sem.release()
+                finish_record(
+                    model=data.model,
+                    plan=plan,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    completion_tokens=completion_tokens,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(tool_calls),
+                    ok=ok,
+                    error=error,
+                )
+                log_request(
+                    path="/v1/messages",
+                    body=raw,
+                    model=data.model,
+                    stream=True,
+                    plan=plan,
+                    completion_tokens=completion_tokens,
+                    ttft_s=plan.ttft_s + queue_s,
+                    e2e_s=e2e_s,
+                    queue_s=queue_s,
+                    finish_reason=plan.finish_reason,
+                    tool_calls=len(tool_calls),
+                    status="success" if ok else "aborted",
+                    preview_messages=data.messages,
+                )
+
+        return StreamingResponse(messages_stream(), media_type="text/event-stream")
+
     @app.get("/v1/models")
     async def list_models():
         return {
@@ -641,6 +985,7 @@ def create_app(cfg: ServerConfig) -> FastAPI:
         metrics.reset()
         engine.cache.reset()
         logs.entries.clear()
+        state.responses.clear()
         return {"ok": True, "version": __version__}
 
     @app.get("/api/config")

@@ -36,8 +36,8 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
-      - name: 字节码编译检查（含 bench/agentx）
-        run: python -m compileall -q gptzero bench agentx tests server.py
+      - name: 字节码编译检查（含 bench）
+        run: python -m compileall -q gptzero bench tests server.py
 
       - name: 单元测试
         run: python -m pytest -q
@@ -62,14 +62,14 @@ jobs:
           context: .
           push: false
           load: true
-          tags: gptzero:v3
+          tags: gptzero:v4
           build-args: |
             WITH_TRANSFORMERS=0
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: 镜像体积
-        run: docker images gptzero:v3 --format '{{.Repository}}:{{.Tag}} {{.Size}}'
+        run: docker images gptzero:v4 --format '{{.Repository}}:{{.Tag}} {{.Size}}'
 
       - name: 断网自检（--network none）
-        run: docker run --rm --network none -e GPTZERO_PORT=8090 gptzero:v3 smoke
+        run: docker run --rm --network none -e GPTZERO_PORT=8090 gptzero:v4 smoke

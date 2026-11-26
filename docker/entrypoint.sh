@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# GPT-Zero v3 容器入口
+# GPT-Zero v4 容器入口
 # ---------------------------------------------------------------------------
 # 子命令：
 #   mock   启动离线 Mock 推理服务（默认，监听 0.0.0.0:8090）
 #   bench  运行压测 harness（python -m bench ...）
-#   agentx 运行 AgentX trace 生成/回放（python -m agentx ...）
-#   smoke  容器内自检：起 mock → 打 7 类端点 → 退出码 0/1
+#   smoke  容器内自检：起 mock → 打端点 → 退出码 0/1
 #   shell  进入交互 shell（调试用）
 #   pytest 在容器内跑单元测试（调试用）
 #
@@ -30,11 +29,10 @@ log() { printf '[entrypoint] %s\n' "$*" >&2; }
 
 usage() {
   cat >&2 <<'EOF'
-用法: entrypoint.sh <mock|bench|agentx|smoke|shell|pytest> [args...]
+用法: entrypoint.sh <mock|bench|smoke|shell|pytest> [args...]
 
   mock   [gptzero CLI 参数...]   启动 mock 服务（默认动作）
   bench  [bench CLI 参数...]     例: bench run --url http://mock:8090 --profile coding
-  agentx [agentx CLI 参数...]    例: agentx replay --url http://mock:8090
   smoke                          容器内端到端自检
   shell                          交互 shell
   pytest [pytest 参数...]        容器内单元测试
@@ -45,13 +43,13 @@ usage() {
 EOF
 }
 
-# 模块缺失时给出可操作的提示（bench/agentx 由队友并行开发，镜像按契约先行支持）
+# 模块缺失时给出可操作的提示（bench 并行开发时，镜像按契约先行支持）
 need_module() {
   local mod="$1"
   if ! python -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('$mod') else 1)" 2>/dev/null; then
     log "错误：镜像内缺少 '$mod' 模块（python -m $mod 不可用）。"
-    log "该模块由队友并行开发中；请重新构建镜像以纳入最新代码："
-    log "  scripts/offline_image.ps1 -NoCache   # 或 docker build -t gptzero:v3 ."
+    log "请重新构建镜像以纳入最新代码："
+    log "  scripts/offline_image.ps1 -NoCache   # 或 docker build -t gptzero:v4 ."
     exit 3
   fi
 }
@@ -98,11 +96,6 @@ case "$cmd" in
   bench)
     need_module bench
     exec python -m bench "$@"
-    ;;
-
-  agentx)
-    need_module agentx
-    exec python -m agentx "$@"
     ;;
 
   smoke)

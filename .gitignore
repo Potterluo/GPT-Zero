@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+site/
 .venv/
 .venv-*/
 .pytest_cache/
@@ -12,7 +13,6 @@ dist/
 
 # Runtime artifacts
 logs/
-results/agentx/tmp/
 results/**/tmp/
 results/tmp/
 *.jsonl
@@ -28,7 +28,4 @@ data/
 Thumbs.db
 .vscode/
 .idea/
-
-# agentx-offline build cache (dataset Arrow + tokenizer, ~1.8GB)
-agentx_offline/cache/
 

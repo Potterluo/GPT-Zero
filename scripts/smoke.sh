@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # =============================================================================
-# GPT-Zero v3 容器内自检（smoke test）
+# GPT-Zero v4 容器内自检（smoke test）
 # =============================================================================
 # 作用：起一个 mock（或复用已在跑的），逐项校验契约里的关键端点，退出码 0/1。
 # 只依赖 Python 标准库 + bash，容器 `--network none` 也能跑 → 证明纯离线可用。
 #
-#   docker run --rm --network none gptzero:v3 smoke
+#   docker run --rm --network none gptzero:v4 smoke
 #   bash scripts/smoke.sh                      # 本机（默认 8090）
 #   SMOKE_NO_START=1 bash scripts/smoke.sh     # 不自起服务，只校验已在跑的服务
 #   GPTZERO_PORT=9090 bash scripts/smoke.sh
 #
 # 覆盖：/health、/v1/models、/v1/chat/completions（非流式 + 流式 SSE + usage）、
+#       /v1/responses（工具调用）、/v1/messages（流式事件序）、
 #       /metrics（vllm:prefix_cache_* 等 vLLM 命名）、/api/stats（契约 §3.5 字段）
 # =============================================================================
 set -uo pipefail
@@ -60,7 +61,7 @@ EOF
 }
 
 echo "=================================================================="
-echo " GPT-Zero v3 smoke test   target=${BASE}"
+echo " GPT-Zero v4 smoke test   target=${BASE}"
 echo "=================================================================="
 
 if is_up; then
@@ -139,7 +140,7 @@ def get_json(path):
         return r.status, json.loads(r.read().decode())
 
 
-print("\n[1/7] GET /health")
+print("\n[1/9] GET /health")
 try:
     status, body = get_json("/health")
     if status == 200 and body.get("status") == "ok":
@@ -149,7 +150,7 @@ try:
 except Exception as exc:  # noqa: BLE001
     bad("/health", f"{type(exc).__name__}: {exc}")
 
-print("\n[2/7] GET /v1/models（OpenAI 列表格式）")
+print("\n[2/9] GET /v1/models（OpenAI 列表格式）")
 model_id = "gpt-3.5-turbo"
 try:
     status, body = get_json("/v1/models")
@@ -162,7 +163,7 @@ try:
 except Exception as exc:  # noqa: BLE001
     bad("/v1/models", f"{type(exc).__name__}: {exc}")
 
-print("\n[3/7] POST /v1/chat/completions（非流式）")
+print("\n[3/9] POST /v1/chat/completions（非流式）")
 prompt = "smoke: write a short function that adds two integers"
 try:
     payload = {
@@ -192,7 +193,7 @@ try:
 except Exception as exc:  # noqa: BLE001
     bad("chat/non-stream", f"{type(exc).__name__}: {exc}")
 
-print("\n[4/7] POST /v1/chat/completions（流式 SSE + include_usage）")
+print("\n[4/9] POST /v1/chat/completions（流式 SSE + include_usage）")
 try:
     payload = {
         "model": model_id,
@@ -242,7 +243,81 @@ try:
 except Exception as exc:  # noqa: BLE001
     bad("chat/stream", f"{type(exc).__name__}: {exc}")
 
-print("\n[5/7] GET /metrics（vLLM 命名子集）")
+print("\n[5/9] POST /v1/responses（OpenAI Responses + fake 工具调用）")
+try:
+    payload = {
+        "model": model_id,
+        "input": [{"type": "message", "role": "user", "content": prompt}],
+        "tools": [{
+            "type": "function",
+            "name": "read_file",
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+        }],
+        "tool_choice": "required",
+        "max_output_tokens": 64,
+    }
+    with request("/v1/responses", payload) as r:
+        body = json.loads(r.read().decode())
+    calls = [i for i in body.get("output", []) if i.get("type") == "function_call"]
+    usage = body.get("usage") or {}
+    problems = []
+    if body.get("object") != "response":
+        problems.append(f'object={body.get("object")}')
+    if body.get("status") != "completed":
+        problems.append(f'status={body.get("status")}')
+    if not calls or not calls[0].get("call_id"):
+        problems.append("缺 function_call/call_id")
+    else:
+        json.loads(calls[0].get("arguments") or "null")
+    for key in ("input_tokens", "output_tokens", "total_tokens"):
+        if not isinstance(usage.get(key), int):
+            problems.append(f"usage.{key} 缺失")
+    if problems:
+        bad("responses/non-stream", "; ".join(problems))
+    else:
+        ok("responses/non-stream",
+           f'status={body["status"]} call_id={calls[0]["call_id"][:16]}… arguments=valid JSON')
+except Exception as exc:  # noqa: BLE001
+    bad("responses/non-stream", f"{type(exc).__name__}: {exc}")
+
+print("\n[6/9] POST /v1/messages（Anthropic Messages 流式事件序）")
+try:
+    payload = {
+        "model": "claude-3-5-sonnet",
+        "max_tokens": 16,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": True,
+    }
+    events = []
+    text_parts = []
+    with request("/v1/messages", payload) as r:
+        ctype = r.headers.get("Content-Type", "")
+        for raw in r:
+            line = raw.decode().strip()
+            if not line.startswith("data:"):
+                continue
+            data = json.loads(line[5:].strip())
+            kind = data.get("type")
+            if kind and (not events or events[-1] != kind or kind == "content_block_delta"):
+                events.append(kind)
+            if kind == "content_block_delta" and data.get("delta", {}).get("type") == "text_delta":
+                text_parts.append(data["delta"]["text"])
+    problems = []
+    if "event-stream" not in ctype:
+        problems.append(f"Content-Type={ctype}")
+    for required_evt in ("message_start", "content_block_start", "content_block_delta", "content_block_stop", "message_delta", "message_stop"):
+        if required_evt not in events:
+            problems.append(f"缺 {required_evt}")
+    if not "".join(text_parts):
+        problems.append("没有 text_delta 文本")
+    if problems:
+        bad("messages/stream", "; ".join(problems))
+    else:
+        ok("messages/stream", f'{len(events)} 个事件，事件序完整，text_delta 已出现')
+except Exception as exc:  # noqa: BLE001
+    bad("messages/stream", f"{type(exc).__name__}: {exc}")
+
+print("\n[7/9] GET /metrics（vLLM 命名子集）")
 try:
     with request("/metrics") as r:
         text = r.read().decode()
@@ -297,7 +372,7 @@ try:
 except Exception as exc:  # noqa: BLE001
     bad("/metrics", f"{type(exc).__name__}: {exc}")
 
-print("\n[6/7] GET /api/stats（契约 §3.5 稳定字段）")
+print("\n[8/9] GET /api/stats（契约 §3.5 稳定字段）")
 try:
     status, stats = get_json("/api/stats")
     scalars = [
@@ -328,7 +403,7 @@ try:
 except Exception as exc:  # noqa: BLE001
     bad("/api/stats", f"{type(exc).__name__}: {exc}")
 
-print("\n[7/7] 前缀缓存生效（两次相同长 prompt → cache_hit_tokens 增长）")
+print("\n[9/9] 前缀缓存生效（两次相同长 prompt → cache_hit_tokens 增长）")
 try:
     long_prompt = "prefix-cache smoke: " + ("x" * 4000)
     payload = {

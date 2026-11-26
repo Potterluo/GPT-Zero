@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     证明镜像「纯离线可用」：在 --network none（无网卡、无 DNS、无外网）下跑完整 smoke。
 
@@ -9,18 +9,18 @@
     顺便校验：镜像内确实没有 curl/wget（探活靠标准库）、HF 离线环境变量已生效。
 
 .PARAMETER Tag
-    镜像 tag，默认 gptzero:v3。
+    镜像 tag，默认 gptzero:v4。
 
 .PARAMETER Port
     容器内端口，默认 8090。
 
 .EXAMPLE
     .\scripts\verify_offline.ps1
-    .\scripts\verify_offline.ps1 -Tag gptzero:v3-http
+    .\scripts\verify_offline.ps1 -Tag gptzero:v4-http
 #>
 [CmdletBinding()]
 param(
-    [string]$Tag = "gptzero:v3",
+    [string]$Tag = "gptzero:v4",
     [int]$Port = 8090
 )
 

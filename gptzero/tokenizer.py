@@ -5,7 +5,7 @@ Two implementations share one interface:
 ``HFTokenCodec``
     Wraps a *local* ``transformers`` tokenizer directory (the repo ships
     ``deepseek_v3_tokenizer/``).  This gives token counts that match what a real
-    client (AIPerf / agentx) computes, which is what ``use_server_token_count``
+    client (bench harness / agent loops) computes, which is what ``use_server_token_count``
     compares against.
 
 ``HeuristicCodec``

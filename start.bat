@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
 REM ============================================================================
-REM GPT-Zero v3 启动脚本（Windows）
+REM GPT-Zero v4 启动脚本（Windows）
 REM   优先用项目 .venv 的解释器；没有则回退系统 python。
 REM   端口默认 8090（本机 8080 被 piforged 常驻占用）；可自行覆盖：
 REM     start.bat --port 9090
@@ -25,7 +25,7 @@ REM 端口默认 8090，除非调用方已显式指定
 if not defined GPTZERO_PORT set "GPTZERO_PORT=8090"
 
 echo ====================================
-echo GPT-Zero v3 启动
+echo GPT-Zero v4 启动
 echo   解释器 : !PY!
 echo   端口   : !GPTZERO_PORT!   ^(http://127.0.0.1:!GPTZERO_PORT!^)
 echo   参数   : %*

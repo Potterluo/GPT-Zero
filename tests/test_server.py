@@ -226,7 +226,7 @@ def test_logs_and_reset(client):
 
 
 def test_max_completion_tokens_alias(client):
-    """AIPerf/AgentX sends ``max_completion_tokens`` instead of ``max_tokens``."""
+    """Bench harnesses send ``max_completion_tokens`` instead of ``max_tokens``."""
     resp = client.post(
         "/v1/chat/completions",
         json={

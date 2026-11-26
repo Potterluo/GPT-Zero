@@ -3,56 +3,63 @@
 ## 1. 组件
 
 ```
-                    ┌─────────────┐
-   HTTP (SSE/JSON)  │  gptzero    │
-  ─────────────────▶│  .app       │ FastAPI 路由：OpenAI 兼容 + 观测端点 + 面板
+                     ┌─────────────┐
+    HTTP (SSE/JSON)  │  gptzero    │
+  ─────────────────▶│  .app       │ FastAPI 路由：三协议端点 + 观测端点 + 面板
                     └──────┬──────┘
-                           │ plan()
-                    ┌──────▼──────┐
-                    │  engine     │ 前缀缓存 + 输出生成 + 延迟模型
-                    └──┬───────┬──┘
-              tokenize │       │ metrics
-                    ┌──▼──┐  ┌─▼────────┐
-                    │tok. │  │ metrics  │ 计数器/直方图/分位数
-                    └─────┘  └──────────┘
-                           │
-                    ┌──────▼──────┐
-                    │ dashboard   │ 轮询 /api/stats + /api/logs
-                    └─────────────┘
+                            │ normalize（协议 → 内部表示）
+                     ┌──────▼──────┐
+                     │  protocols  │ chat-completions / responses / messages 适配
+                     └──────┬──────┘
+                            │ plan()
+                     ┌──────▼──────┐
+                     │  engine     │ 前缀缓存 + 输出生成 + 延迟模型
+                     └──┬───────┬──┘
+               tokenize │       │ metrics
+                     ┌──▼──┐  ┌─▼────────┐
+                     │tok. │  │ metrics  │ 计数器/直方图/分位数
+                     └─────┘  └──────────┘
+                            │
+                     ┌──────▼──────┐
+                     │ dashboard   │ 轮询 /api/stats + /api/logs
+                     └─────────────┘
 ```
 
 | 模块 | 责任 | 关键点 |
 |---|---|---|
 | `gptzero/app.py` | HTTP 层、SSE、并发闸门、请求日志 | 一个请求只解析一次 body；槽位等待时间计入 TTFT |
+| `gptzero/protocols.py` | 三协议 ↔ 内部表示的双向适配 | 请求归一化（engine 输入）+ 响应/SSE 蓝图（engine 输出） |
 | `gptzero/engine.py` | `PrefixCache`、`Filler`、`LatencyModel`、`MockEngine.plan()` | 纯函数式计划，流式/非流式共用同一份结果 |
 | `gptzero/tokenizer.py` | token 计数/编解码 | 优先 `tokenizers` 读 `tokenizer.json`（decode 保留空格），回退启发式 |
 | `gptzero/metrics.py` | 计数器、直方图、Prometheus 文本 | 分位数用保留样本精确算，桶仅用于 Prometheus |
 | `gptzero/models.py` | 本地模型目录扫描/模糊匹配 | v2 兼容，只用于找 tokenizer |
 | `bench/` | 闭环压测、聚合、报告、图表 | 只走 HTTP，与服务端解耦 |
-| `agentx/` | WEKA trace 生成、DAG 回放 | 主链 + 子代理 SPAWN/JOIN |
 
 ## 2. 一次请求的生命周期
 
 ```mermaid
 sequenceDiagram
-    participant C as client (bench/agentx)
+    participant C as client (bench / agent loop)
     participant A as FastAPI app
+    participant P as protocols 适配
     participant E as engine
     participant S as semaphore
     participant M as metrics
 
-    C->>A: POST /v1/chat/completions (stream=true)
-    A->>E: plan(messages, max_tokens, tools, seed)
+    C->>A: POST /v1/chat/completions · /v1/responses · /v1/messages (stream=true)
+    A->>P: 归一化为内部 messages + tools
+    P->>E: plan(messages, max_tokens, tools, seed)
     E->>E: tokenize → block hashes → cache lookup/insert
-    E-->>A: prompt_tokens, cached_tokens, ttft, tpot, chunks / tool_calls
+    E-->>P: prompt_tokens, cached_tokens, ttft, tpot, chunks / tool_calls
+    P-->>A: 协议响应蓝图（JSON 或 SSE 帧序列）
     A->>S: acquire (排队计时)
-    A->>C: data:{role}
+    A->>C: 首帧（role / response.created / message_start）
     A->>A: sleep(ttft)
     loop 每个文本帧
         A->>A: sleep(tpot × frame_tokens)
-        A->>C: data:{delta.content}
+        A->>C: 协议各自的 delta 事件
     end
-    A->>C: data:{finish_reason}
+    A->>C: 终止帧（finish / response.completed / message_stop）
     A->>M: record(TTFT/TPOT/E2E/tokens/cache/tool_calls)
     A->>S: release
 ```
@@ -90,7 +97,7 @@ mock 的解码步长常为个位数毫秒，而 Windows 默认定时器粒度约
 
 ## 4. 前缀缓存模拟
 
-- 把 prompt 编码成 token id 序列，按 `block_size`（默认 64，与 AgentX 的 64-token 块一致）切块，块哈希 = `blake2b(ids[64])`。
+- 把 prompt 编码成 token id 序列，按 `block_size`（默认 64）切块，块哈希 = `blake2b(ids[64])`。
 - 查询：沿 trie 走，返回最长**完整块**前缀的 token 数。
 - 插入：整条序列插入，块引用计数 +1；同一序列重复出现时刷新 LRU 次序。
 - 淘汰：容量（块数）超限时淘汰最久未使用的**序列**，引用计数归零的块才真正释放——共享 system 前缀不会因为某个会话结束而被踢掉。
@@ -111,7 +118,7 @@ mock 的解码步长常为个位数毫秒，而 Windows 默认定时器粒度约
 
 | 指标 | 定义 | 用途 |
 |---|---|---|
-| TTFT | 发出请求 → 首个 content/tool_calls delta | 交互性主指标（AgentX 也以此为核心） |
+| TTFT | 发出请求 → 首个 content/tool_calls delta | 交互性主指标 |
 | TPOT | `(e2e − ttft) / (completion_tokens − 1)` | 解码速度 |
 | ITL | 相邻内容帧间隔均值 | 流式平滑度 |
 | E2E | 请求全程 | 容量/超时预算 |
@@ -135,16 +142,27 @@ report.py    JSON → Markdown / CSV / 图（matplotlib Agg）
 - 每个并发点前后各取一次服务端计数器，避免跨点污染。
 - 图表默认英文标签，避免无中文字体的容器里出现方块。
 
-## 8. AgentX 对应关系
+## 8. 多协议适配（protocols.py）
 
-| AgentX 机制 | 本仓库实现 | 说明 |
-|---|---|---|
-| `--concurrency N` 闭环 lane | `bench`/`agentx replay` 的 N 条会话协程 | 语义一致：并发的是客户端 |
-| WEKA trace `hash_ids`（64-token 块） | `agentx/trace_gen.py` + `PrefixCache` 块哈希 | 前缀共享可被服务端真实命中 |
-| `t` 时间轴 + 子代理 SPAWN/JOIN | `agentx/replay.py` | 主链等待 JOIN，子链并发 |
-| `max_tokens=out` + `ignore_eos` | 服务端精确产出 `out` token | 长度可比 |
-| warmup：primer + 10 条/lane | replay 的 warmup 阶段 | 建立 KV 前缀后再计量 |
-| `cache_bust=FIRST_TURN_PREFIX` | `[rid:xxxxxxxxxxxx]` 注入首轮 | 防止跨 replay 复用 |
-| 报告：throughput + TTFT + interactivity | bench 报表/图 | 不产出官方 submission |
+一个 mock 引擎，三种线格式。适配层是纯函数，不知道 asyncio / 排队 / 指标的存在：
 
-不能复现的部分（真实模型质量、厂商 chat template、speculative acceptance、HF 数据集内容）见 `docs/AGENTX.md` §10。
+**请求方向（协议 → 内部表示）**——所有协议都归一化成 OpenAI chat 消息 + OpenAI 函数工具，喂给同一个 `engine.plan()`：
+
+| 协议 | 归一化规则 |
+|---|---|
+| Chat Completions | 即内部表示本身；`max_completion_tokens` 视为 `max_tokens` 别名 |
+| Responses | `instructions` → system 消息；`input` 字符串/条目数组展开（`message`→消息、`function_call`→assistant.tool_calls、`function_call_output`→tool 消息）；`max_output_tokens`→`max_tokens`；扁平函数工具 → 嵌套格式 |
+| Messages | `system`（字符串或 block 数组，含 `cache_control`）→ system 消息；`text`→文本、`tool_use`→assistant.tool_calls、`tool_result`→独立 tool 消息；`input_schema`→`parameters`；`stop_sequences`→`stop` |
+
+**响应方向（引擎计划 → 线格式）**——非流式直接组 JSON 对象；流式返回「帧蓝图」列表 `{"event", "data", "pace_s"}`，HTTP 层逐帧 `sleep(pace_s)` 后发出：
+
+| 协议 | 非流式 | 流式事件序 | 工具调用形态 |
+|---|---|---|---|
+| Chat Completions | `chat.completion` | `data:` chunk + `[DONE]` | `delta.tool_calls` 按 24 字符流式 |
+| Responses | `response` 对象（status=`completed`/`incomplete`） | `response.created` → `output_item.added` → `output_text.delta` / `function_call_arguments.delta` → `response.completed`/`response.incomplete` | `function_call` 条目 + `call_id` |
+| Messages | `message` 对象（stop_reason=`max_tokens`/`tool_use`/`stop_sequence`） | `message_start` → `ping` → `content_block_start/delta/stop` → `message_delta` → `message_stop` | `tool_use` 块（id 为 `toolu_*`）+ `input_json_delta` |
+
+- 工具调用 id 按协议出形：Chat/Responses 用引擎的 `call_*`，Messages 重映射为 `toolu_*`。
+- Responses 维护进程内 `ResponseStore`：支持 `GET /v1/responses/{id}` 与 `previous_response_id` 多轮链式上下文（上下文参与 prompt token 计数与前缀缓存哈希，多轮会话能看到缓存命中率上升）。
+- mock 无自然 EOS：纯文本轮在 Chat 里 `finish_reason=length`、Responses 里 `status=incomplete`、Messages 里 `stop_reason=max_tokens`——三者口径一致，见 README「已知限制」。
+- 协议错误体各自成形：OpenAI `{"error": {...}}`，Anthropic `{"type":"error","error":{...}}`。

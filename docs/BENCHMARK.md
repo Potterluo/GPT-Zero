@@ -60,8 +60,8 @@ results/charts/*.png|.svg   # 6 张图，PNG 嵌报告、SVG 可编辑
 | `longctx` | 单轮长输入、短输出（半数 64k、半数 128k） | 64k/128k | 64 tok |
 
 `coding` 每轮的上下文增长由 `_pad_to_target` 精确补到计划目标；`agentic` 的工具结果
-（read_file 1.8k~3.2k tok、run_shell 0.7k~1.4k tok 等）和 20% fan-out 与 AgentX 类
-负载的“工具结果驱动上下文膨胀”一致。可用 `--max-tokens` 覆盖输出长度。
+（read_file 1.8k~3.2k tok、run_shell 0.7k~1.4k tok 等）和 20% fan-out 模拟 agentic 编码
+Agent 负载的“工具结果驱动上下文膨胀”形态。可用 `--max-tokens` 覆盖输出长度。
 
 ---
 
